@@ -8,26 +8,36 @@ import models
 
 Base.metadata.create_all(bind=engine)
 app = FastAPI(title="DbFinalProject Backend API")
-# ---------------- CORS �м������ -----------------
-origins = [
-    "http://127.0.0.1:8000",
-    "http://localhost:8000",
-    "null",
-]
+
+# origins = [
+#     "http://127.0.0.1:8000",
+#     "http://localhost:8000",
+#     "null",
+# ]
+# app.add_middleware(
+#     CORSMiddleware,
+#     allow_origins=origins,
+#     allow_credentials=True,
+#     allow_methods=["*"],
+#     allow_headers=["*"],
+# )
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=["*"],  # 允许任何前端端口访问
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["*"],  # 允许 GET, POST, PUT, DELETE 等所有方法
+    allow_headers=["*"],  # 允许所有 Header
 )
+
+
 
 if not os.path.exists("static"):
     os.makedirs("static")
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
-app.include_router(user_router, prefix="/api/users", tags=["Users"])
-
+# app.include_router(user_router, prefix="/api/users", tags=["Users"])
+app.include_router(user_router)
 @app.get("/")
 def read_root():
     return {"message": "Welcome to the DbFinalProject Backend API"}

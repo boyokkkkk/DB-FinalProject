@@ -1,14 +1,29 @@
 <script setup>
-import MainLayout from './components/MainLayout.vue' // 假设你放在 layouts 文件夹
-// 如果放在 components 文件夹，路径就是 './components/MainLayout.vue'
+import { computed } from 'vue'
+import { useRoute } from 'vue-router'
+import MainLayout from './components/MainLayout.vue'
+
+const route = useRoute()
+
+// 这里的逻辑是：检查当前路由的 meta 信息
+// 如果我们在 router/index.js 里写了 meta: { layout: 'empty' }
+// 那么 isFullPage 就会变成 true
+const isFullPage = computed(() => route.meta.layout === 'empty')
 </script>
 
 <template>
-  <MainLayout>
+  <div v-if="isFullPage" class="full-page-container">
+    <router-view />
+  </div>
+
+  <MainLayout v-else>
     <router-view />
   </MainLayout>
 </template>
 
-<style>
-/* App.vue 里只需要留一些全局的基础样式，或者直接留空 */
+<style scoped>
+.full-page-container {
+  width: 100vw;
+  height: 100vh;
+}
 </style>
