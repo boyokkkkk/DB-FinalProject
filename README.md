@@ -6,3 +6,10 @@ npm install vue-cropper
 npm install echarts
 
 reset_db.py 可以执行init.sql 清空数据库并重新建新的空表
+
+后端
+cd backend
+uvicorn main:app --reload
+前端
+cd frontend
+npm run dev
