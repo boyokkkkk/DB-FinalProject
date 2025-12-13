@@ -11,11 +11,21 @@ const service = axios.create({
 // 2. 请求拦截器 (比如发送请求前如果要带 Token，就在这里处理)
 service.interceptors.request.use(
   config => {
-    // 如果之后有 Token，可以在这里加
-    // const token = localStorage.getItem('token')
-    // if (token) {
-    //   config.headers['Authorization'] = `Bearer ${token}`
-    // }
+    let token = localStorage.getItem('token') 
+    
+    if (!token) {
+        const userInfo = localStorage.getItem('user_info')
+        if (userInfo) {
+            try {
+                token = JSON.parse(userInfo).token
+            } catch (e) {}
+        }
+    }
+
+    // 如果有 token，加到 Header 里
+    if (token) {
+      config.headers['Authorization'] = `Bearer ${token}`
+    }
     return config
   },
   error => {

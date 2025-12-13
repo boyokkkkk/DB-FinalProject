@@ -3,24 +3,12 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from database import engine, Base
 from routers.user_router import router as user_router
+from routers.outfit_router import  router as outfit_router
 import os
 import models
 
 Base.metadata.create_all(bind=engine)
 app = FastAPI(title="DbFinalProject Backend API")
-
-# origins = [
-#     "http://127.0.0.1:8000",
-#     "http://localhost:8000",
-#     "null",
-# ]
-# app.add_middleware(
-#     CORSMiddleware,
-#     allow_origins=origins,
-#     allow_credentials=True,
-#     allow_methods=["*"],
-#     allow_headers=["*"],
-# )
 
 app.add_middleware(
     CORSMiddleware,
@@ -38,6 +26,7 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # app.include_router(user_router, prefix="/api/users", tags=["Users"])
 app.include_router(user_router)
+app.include_router(outfit_router)
 @app.get("/")
 def read_root():
     return {"message": "Welcome to the DbFinalProject Backend API"}
