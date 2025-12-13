@@ -1,43 +1,85 @@
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from opengauss_sqlalchemy.psycopg2 import OpenGaussDialect_psycopg2
 from sqlalchemy.dialects import registry
 from sqlalchemy.engine import Connection
 import re
+import os
+from urllib.parse import quote_plus
 
-# ----------------- openGauss ¼æÈİĞÔ·½ÑÔ -----------------
+
 registry.register(
     "opengauss.psycopg2",
     "opengauss_sqlalchemy.psycopg2",
     "OpenGaussDialect_psycopg2"
 )
-# ----------------- Êı¾İ¿âÁ¬½ÓÅäÖÃ -----------------
 
-DB_USER = "cby"
-DB_PASS = "Cby1234#"
+DB_USER = "dbuser"
+DB_PASS = "Cby@1234"
+encoded_password = quote_plus(DB_PASS)
 DB_HOST = "127.0.0.1"
 DB_PORT = "15432"
 DB_NAME = "finalpro_db"
-SQLALCHEMY_DATABASE_URL = f"opengauss+psycopg2://{DB_USER}:{DB_PASS}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+SQLALCHEMY_DATABASE_URL = f"opengauss://{DB_USER}:{encoded_password}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+print(f"{SQLALCHEMY_DATABASE_URL}")
 
-# ´´½¨Êı¾İ¿âÒıÇæ
 engine = create_engine(
     SQLALCHEMY_DATABASE_URL,
     pool_pre_ping=True,
     echo=True
 )
 
-# ´´½¨»á»°¹¤³§
+
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-# ÉùÃ÷»ùÀà£¬ËùÓĞ Model ¶¼½«¼Ì³ĞÕâ¸öÀà
+
 Base = declarative_base()
 
-# ÒÀÀµÏî£º»ñÈ¡Êı¾İ¿â»á»°
+
 def get_db():
     db = SessionLocal()
     try:
         yield db
     finally:
         db.close()
+
+def init_database():
+    """åˆå§‹åŒ–æ•°æ®åº“è¡¨ç»“æ„"""
+    try:
+        # æ£€æŸ¥è¡¨æ˜¯å¦å­˜åœ¨
+        with engine.connect() as conn:
+            print("å¼€å§‹åˆå§‹åŒ–æ•°æ®åº“è¡¨ç»“æ„...")
+            
+            # è¯»å–SQLæ–‡ä»¶
+            sql_file_path = os.path.join(os.path.dirname(__file__), '../sql/categories.sql')
+            
+            if not os.path.exists(sql_file_path):
+                # å¦‚æœæ–‡ä»¶ä¸å­˜åœ¨ï¼Œåˆ›å»ºé»˜è®¤çš„åˆå§‹åŒ–SQL
+                print(f"SQLæ–‡ä»¶ä¸å­˜åœ¨: {sql_file_path}")
+            else:
+                with open(sql_file_path, 'r', encoding='utf-8') as f:
+                    sql_script = f.read()
+                
+                # æŒ‰åˆ†å·åˆ†å‰²SQLè¯­å¥å¹¶æ‰§è¡Œ
+                statements = [stmt.strip() for stmt in sql_script.split(';') if stmt.strip()]
+                
+                for statement in statements:
+                    if statement:  # è·³è¿‡ç©ºè¯­å¥
+                        try:
+                            conn.execute(text(statement))
+                            print(f"æ‰§è¡ŒSQL: {statement[:50]}...")  # åªæ‰“å°å‰50ä¸ªå­—ç¬¦
+                        except Exception as e:
+                            print(f"æ‰§è¡ŒSQLè¯­å¥æ—¶å‡ºé”™: {e}")
+                            print(f"é—®é¢˜è¯­å¥: {statement[:100]}...")
+                
+                conn.commit()
+                print("æ•°æ®åº“åˆå§‹åŒ–å®Œæˆï¼")
+                
+    except Exception as e:
+        print(f"æ•°æ®åº“åˆå§‹åŒ–è¿‡ç¨‹ä¸­å‡ºé”™: {e}")
+        raise
+
+# å½“ç›´æ¥è¿è¡Œæ­¤æ–‡ä»¶æ—¶åˆå§‹åŒ–æ•°æ®åº“
+if __name__ == "__main__":
+    init_database()
