@@ -1,10 +1,13 @@
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from opengauss_sqlalchemy.psycopg2 import OpenGaussDialect_psycopg2
 from sqlalchemy.dialects import registry
 from sqlalchemy.engine import Connection
 import re
+import os
+from urllib.parse import quote_plus
+
 
 registry.register(
     "opengauss.psycopg2",
@@ -25,6 +28,7 @@ engine = create_engine(
     pool_pre_ping=True,
     echo=True
 )
+
 
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
