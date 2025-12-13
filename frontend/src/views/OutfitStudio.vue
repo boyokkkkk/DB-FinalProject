@@ -119,6 +119,12 @@ const searchQuery = ref('')
 const activeFilter = ref('All')
 const currentEditData = ref(null)
 
+const getImageUrl = (url) => {
+    if (!url) return ''
+    if (url.startsWith('http')) return url
+    return `http://127.0.0.1:8000${url}`
+}
+
 // [修复2] 这里定义了 Tab 的来源。去掉 Favorites，因为它需要后端支持。
 const filters = ['All', 'Summer', 'Winter', 'Casual', 'Formal']
 
@@ -172,7 +178,7 @@ const editOutfit = async (outfitId) => {
       itemId: item.item_id,           // 记录真实数据库ID
       type: 'image',                  // 类型固定为 image
       // 记得拼上后端地址
-      src: `http://127.0.0.1:8000${item.image_url}`, 
+      src: getImageUrl(item.image_url),
       x: item.position_x,
       y: item.position_y,
       w: item.scale_x, // 我们之前约定 scale_x 存宽度

@@ -1,9 +1,9 @@
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text, Boolean, UniqueConstraint, func, Float, Date, DateTime, Table
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text, Boolean, UniqueConstraint, func, Float, Date, Table
 from sqlalchemy.orm import relationship
-from sqlalchemy.sql import func
-from datetime import datetime
 from database import Base
+from datetime import datetime
 
+# 多对多关联表
 clothing_tags = Table(
     'clothing_tags',
     Base.metadata,
@@ -56,6 +56,9 @@ class ClothingItem(Base):
     user = relationship("User", back_populates="clothing_items")
     category = relationship("Category", back_populates="clothes")
     tags = relationship("Tag", secondary=clothing_tags, back_populates="clothes")
+    
+    # [新增] 反向关联搭配引用，以便级联删除
+    outfit_references = relationship("OutfitRef", back_populates="item", cascade="all, delete-orphan")
 
 class Tag(Base):
     __tablename__ = 'tags'
@@ -75,29 +78,27 @@ class Outfit(Base):
     description = Column(Text, nullable=True)
     season = Column(String(50))
     style = Column(String(50))
-    image_url = Column(String(255), nullable=True) # OutfitBoard Canvas
+    image_url = Column(String(255), nullable=True) 
     create_time = Column(DateTime(timezone=True), server_default=func.now())
     
-    # Relations
     items = relationship("OutfitRef", back_populates="outfit", cascade="all, delete-orphan")
     user = relationship("User")
 
 class OutfitRef(Base):
     __tablename__ = "outfit_ref"
     
-    # Foreign Keys
+    # 联合主键
     outfit_id = Column(Integer, ForeignKey("outfit.outfit_id"), primary_key=True)
-    item_id = Column(Integer, ForeignKey("item.item_id"), primary_key=True)
+    # [修改] 这里必须指向 clothing_items.item_id
+    item_id = Column(Integer, ForeignKey("clothing_items.item_id"), primary_key=True)
     
-    # OutfitBoard Canvas
     position_x = Column(Float, nullable=False, default=0.0)
     position_y = Column(Float, nullable=False, default=0.0)
     rotation = Column(Float, nullable=False, default=0.0)
     scale_x = Column(Float, nullable=False, default=1.0)
     scale_y = Column(Float, nullable=False, default=1.0)
-    z_index = Column(Integer, nullable=False, default=0) # Layout
+    z_index = Column(Integer, nullable=False, default=0)
 
-    # Relations
     outfit = relationship("Outfit", back_populates="items")
-    item = relationship("Item", back_populates="outfit_references")
-    create_time = Column(DateTime, default=datetime.now)
+    # [修改] 关联到 ClothingItem
+    item = relationship("ClothingItem", back_populates="outfit_references")

@@ -2,9 +2,9 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import func, or_
 from typing import List, Optional
-import sys
 from database import get_db
 import models, schemas
+import security
 
 router = APIRouter(
     prefix="/api/closet",
@@ -12,14 +12,20 @@ router = APIRouter(
 )
 
 @router.get("/categories", response_model=List[schemas.Category])
-def get_categories(db: Session = Depends(get_db)):
-    """获取所有分类及衣物数量"""
+def get_categories(
+    db: Session = Depends(get_db),
+    user_id: int = Depends(security.get_current_user_id) # 需登录
+):
+    """获取所有分类，Item数量只统计当前用户的"""
     categories = db.query(models.Category).all()
     result = []
     for category in categories:
+        # 增加 user_id 过滤
         count = db.query(func.count(models.ClothingItem.item_id))\
-                 .filter(models.ClothingItem.category_id == category.category_id)\
-                 .scalar()
+                 .filter(
+                     models.ClothingItem.category_id == category.category_id,
+                     models.ClothingItem.user_id == user_id 
+                 ).scalar()
         category_dict = category.__dict__
         category_dict['item_count'] = count
         result.append(category_dict)
@@ -28,19 +34,22 @@ def get_categories(db: Session = Depends(get_db)):
 @router.get("/category/{category_id}", response_model=schemas.CategoryWithClothes)
 def get_category_with_clothes(
     category_id: int,
-    db: Session = Depends(get_db),
     skip: int = Query(0, ge=0),
-    limit: int = Query(20, le=100)
+    limit: int = Query(20, le=100),
+    db: Session = Depends(get_db),
+    user_id: int = Depends(security.get_current_user_id) # [新增]
 ):
-    """获取分类下的衣物"""
-    category = db.query(models.Category)\
-                 .filter(models.Category.category_id == category_id)\
-                 .first()
+    """获取分类下的衣物 (仅限当前用户)"""
+    category = db.query(models.Category).filter(models.Category.category_id == category_id).first()
     if not category:
         raise HTTPException(status_code=404, detail="Category not found")
     
+    # [修改] 增加 user_id 过滤
     clothes = db.query(models.ClothingItem)\
-                .filter(models.ClothingItem.category_id == category_id)\
+                .filter(
+                    models.ClothingItem.category_id == category_id,
+                    models.ClothingItem.user_id == user_id
+                )\
                 .offset(skip)\
                 .limit(limit)\
                 .all()
@@ -57,10 +66,12 @@ def search_items(
     season: Optional[str] = Query(None),
     skip: int = Query(0, ge=0),
     limit: int = Query(20, le=100),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    user_id: int = Depends(security.get_current_user_id) # [新增]
 ):
-    """搜索衣物"""
-    filters = []
+    """搜索衣物 (仅限当前用户)"""
+    filters = [models.ClothingItem.user_id == user_id]
+    
     if query:
         filters.append(
             or_(
@@ -84,55 +95,46 @@ def search_items(
     return items
 
 @router.get("/items/{item_id}", response_model=schemas.ClothingItem)
-def get_item(item_id: int, db: Session = Depends(get_db)):
-    """获取衣物详情"""
+def get_item(
+    item_id: int, 
+    db: Session = Depends(get_db),
+    user_id: int = Depends(security.get_current_user_id) # [新增]
+):
+    """获取衣物详情 (需验证归属权)"""
     item = db.query(models.ClothingItem)\
-             .filter(models.ClothingItem.item_id == item_id)\
-             .first()
+             .filter(
+                 models.ClothingItem.item_id == item_id,
+                 models.ClothingItem.user_id == user_id # 只能查自己的
+             ).first()
     if not item:
         raise HTTPException(status_code=404, detail="Item not found")
     return item
 
 @router.post("/items", response_model=schemas.ClothingItem)
-def create_item(item: schemas.ClothingItemCreate, db: Session = Depends(get_db)):
+def create_item(
+    item: schemas.ClothingItemCreate, 
+    db: Session = Depends(get_db),
+    user_id: int = Depends(security.get_current_user_id) # [新增]
+):
     """创建衣物"""
     try:
-        # 先验证 item 数据
-        print(f"📥 接收到的数据: {item.dict()}")
-
-        # 检查必要字段
-        if not item.user_id:
-            raise HTTPException(status_code=400, detail="user_id 是必填字段")
-
-        if not item.category_id:
-            raise HTTPException(status_code=400, detail="category_id 是必填字段")
-
-        # 检查用户是否存在
-        user = db.query(models.User).filter(models.User.user_id == item.user_id).first()
-        if not user:
-            raise HTTPException(status_code=404, detail=f"用户ID {item.user_id} 不存在")
-
-        # 检查分类是否存在
-        category = db.query(models.Category).filter(models.Category.category_id == item.category_id).first()
-        if not category:
-            raise HTTPException(status_code=404, detail=f"分类ID {item.category_id} 不存在")
-
-        # 准备数据
+        # 忽略前端传来的 user_id，强制使用 Token 中的 user_id
         item_data = item.dict()
+        item_data['user_id'] = user_id 
+        
         tag_ids = item_data.pop('tag_ids', [])
 
-        print(f"📝 准备插入的数据: {item_data}")
+        # 检查分类是否存在
+        category = db.query(models.Category).filter(models.Category.category_id == item_data['category_id']).first()
+        if not category:
+            raise HTTPException(status_code=404, detail=f"分类ID {item_data['category_id']} 不存在")
 
-        # 创建衣物对象
         db_item = models.ClothingItem(**item_data)
         db.add(db_item)
-        db.flush()  # 先flush获取item_id
+        db.flush()
 
-        print(f"✅ 衣物创建成功，item_id: {db_item.item_id}")
-    
         # 添加标签
         if tag_ids:
-            print(f"🏷️ 准备添加标签: {tag_ids}")
             for tag_id in tag_ids:
                 tag = db.query(models.Tag).filter(models.Tag.tag_id == tag_id).first()
                 if tag:
@@ -142,58 +144,51 @@ def create_item(item: schemas.ClothingItemCreate, db: Session = Depends(get_db))
                             tag_id=tag_id
                         )
                     )
-                    print(f"  关联标签 {tag_id}")
 
         db.commit()
         db.refresh(db_item)
-        print(f"🎉 衣物保存完成: {db_item.item_id}")
-    
         return db_item
-    except HTTPException:
-        raise
     except Exception as e:
-        print(f"❌ 创建衣物失败: {e}")
         db.rollback()
         raise HTTPException(status_code=500, detail=f"创建衣物失败: {str(e)}")
 
 @router.put("/items/{item_id}", response_model=schemas.ClothingItem)
-def update_item(item_id: int, item_update: schemas.ClothingItemCreate, db: Session = Depends(get_db)):
+def update_item(
+    item_id: int, 
+    item_update: schemas.ClothingItemCreate, 
+    db: Session = Depends(get_db),
+    user_id: int = Depends(security.get_current_user_id)
+):
     """更新衣物"""
     db_item = db.query(models.ClothingItem)\
-                .filter(models.ClothingItem.item_id == item_id)\
+                .filter(models.ClothingItem.item_id == item_id, models.ClothingItem.user_id == user_id)\
                 .first()
     if not db_item:
         raise HTTPException(status_code=404, detail="Item not found")
     
-    for key, value in item_update.dict(exclude={'tag_ids'}).items():
+    # 不允许修改 user_id
+    update_data = item_update.dict(exclude={'tag_ids', 'user_id'})
+    for key, value in update_data.items():
         setattr(db_item, key, value)
     
-    # 更新标签
     if item_update.tag_ids is not None:
-        # 删除现有标签
-        db.execute(
-            models.clothing_tags.delete().where(
-                models.clothing_tags.c.item_id == item_id
-            )
-        )
-        # 添加新标签
+        db.execute(models.clothing_tags.delete().where(models.clothing_tags.c.item_id == item_id))
         for tag_id in item_update.tag_ids:
-            db.execute(
-                models.clothing_tags.insert().values(
-                    item_id=item_id,
-                    tag_id=tag_id
-                )
-            )
+            db.execute(models.clothing_tags.insert().values(item_id=item_id, tag_id=tag_id))
     
     db.commit()
     db.refresh(db_item)
     return db_item
 
 @router.delete("/items/{item_id}")
-def delete_item(item_id: int, db: Session = Depends(get_db)):
+def delete_item(
+    item_id: int, 
+    db: Session = Depends(get_db),
+    user_id: int = Depends(security.get_current_user_id)
+):
     """删除衣物"""
     db_item = db.query(models.ClothingItem)\
-                .filter(models.ClothingItem.item_id == item_id)\
+                .filter(models.ClothingItem.item_id == item_id, models.ClothingItem.user_id == user_id)\
                 .first()
     if not db_item:
         raise HTTPException(status_code=404, detail="Item not found")

@@ -37,7 +37,7 @@
               @dragstart="onDragStart($event, item, 'image')"
             >
               <div class="img-holder">
-                <el-image :src="`http://127.0.0.1:8000${item.image_url}`" fit="contain" loading="lazy" class="draggable-img" />
+                <el-image :src="getImageUrl(item.image_url)" fit="contain" loading="lazy" class="draggable-img" />
               </div>
             </div>
           </div>
@@ -227,7 +227,14 @@ import { ElMessage } from 'element-plus'
 import { Goods, Picture, EditPen, MagicStick, Minus, Plus, FullScreen, Delete, RefreshRight, ArrowUp, ArrowDown } from '@element-plus/icons-vue'
 import request from '../utils/request'
 
-// 接收初始数据（用于编辑模式）
+// 处理图片 URL
+const getImageUrl = (url) => {
+  if (!url) return ''
+  if (url.startsWith('http')) return url
+  // 本地静态资源，拼上前缀
+  return `http://127.0.0.1:8000${url.startsWith('/') ? '' : '/'}${url}`
+}
+
 const props = defineProps({
   initialData: { type: Object, default: null }
 })
@@ -251,7 +258,7 @@ const saveForm = reactive({
   tags: [],
   note: ''
 })
-const tagOptions = ['Casual', 'Work', 'Formal', 'Date Night', 'Weekend', 'Sporty', 'Chic']
+const tagOptions = ['Casual', 'Work', 'Formal', 'Date Night', 'Sporty', 'Chic']
 
 // Dragging State
 let draggedItem = null 
@@ -259,7 +266,7 @@ let isInteracting = false
 let startX = 0, startY = 0
 let initialParams = {} 
 
-// === Assets Data (保持不变) ===
+// === Assets Data ===
 const tabs = [
   { key: 'wardrobe', label: 'Items', icon: 'Goods' },
   { key: 'background', label: 'Canvas', icon: 'Picture' },
@@ -324,7 +331,6 @@ const getContentStyle = (el) => ({
     fontSize: `${el.fontSize}px`
 })
 
-// === 核心修复逻辑 1: 拖拽时获取宽高比 ===
 const onDragStart = (e, item, type) => {
     // 默认比例 1:1
     let ratio = 1
@@ -364,7 +370,7 @@ const onDrop = (e) => {
             id: newId, 
             itemId: draggedItem.item.item_id,
             type: 'image', 
-            src: `http://127.0.0.1:8000${draggedItem.item.image_url}`,
+            src: getImageUrl(draggedItem.item.image_url),
             // 居中放置到鼠标位置
             x: mouseX - (baseWidth / 2), 
             y: mouseY - (calculatedHeight / 2), 

@@ -1,6 +1,5 @@
 <template>
   <div class="my-closet">
-    <!-- 顶部搜索栏 -->
     <div class="search-bar">
       <h1>My Closet</h1>
       <p class="welcome">Welcome back, get ready for your day.</p>
@@ -11,13 +10,12 @@
           placeholder="Search items by name, color..." 
           class="search-input"
         />
-        <button class="add-btn" @click="showAddModal = true">
+        <button class="add-btn" @click="openAddModal()">
           + Add Item
         </button>
       </div>
     </div>
 
-    <!-- 分类卡片网格 -->
     <div v-if="!selectedCategory" class="categories-grid">
       <h2>All Categories</h2>
       <div class="categories">
@@ -34,9 +32,11 @@
           <p class="item-count">{{ category.item_count || 0 }} items</p>
         </div>
       </div>
+      <div v-if="categories.length === 0" class="empty-state">
+        暂无分类数据，请检查网络或登录状态。
+      </div>
     </div>
 
-    <!-- 衣物列表 -->
     <div v-else class="clothes-grid">
       <div class="breadcrumb">
         <button class="back-btn" @click="selectedCategory = null">
@@ -55,7 +55,7 @@
         >
           <div class="clothing-image">
             <img 
-              :src="item.image_url || '/placeholder-clothing.png'" 
+              :src="getImageUrl(item.image_url)" 
               :alt="item.name"
             />
           </div>
@@ -65,164 +65,73 @@
             <div class="tags">
               <span v-if="item.season" class="tag season">{{ item.season }}</span>
               <span v-if="item.style" class="tag style">{{ item.style }}</span>
-              <span v-if="item.color" class="tag color">{{ item.color }}</span>
             </div>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- 衣物详情模态框 -->
     <div v-if="showClothingDetail" class="modal-overlay" @click="closeDetail">
       <div class="clothing-detail" @click.stop>
         <button class="close-btn" @click="closeDetail">×</button>
-        
         <div class="detail-header">
-          <img 
-            :src="selectedClothing.image_url || '/placeholder-clothing.png'" 
-            :alt="selectedClothing.name"
-            class="detail-image"
-          />
+          <img :src="getImageUrl(selectedClothing.image_url)" class="detail-image"/>
           <div class="detail-info">
             <div class="brand">{{ selectedClothing.brand }}</div>
             <h2>{{ selectedClothing.name }}</h2>
             <div class="detail-tags">
-              <span v-if="selectedClothing.season" class="tag">{{ selectedClothing.season }}</span>
-              <span v-if="selectedClothing.style" class="tag">{{ selectedClothing.style }}</span>
-              <span v-if="selectedClothing.color" class="tag">{{ selectedClothing.color }}</span>
+               <span class="tag">{{ selectedClothing.season }}</span>
+               <span class="tag">{{ selectedClothing.style }}</span>
             </div>
           </div>
         </div>
-
         <div class="detail-content">
-          <div class="detail-section">
-            <h3>Details</h3>
-            <div class="details-grid">
-              <div class="detail-item">
-                <span class="label">Material:</span>
-                <span>{{ selectedClothing.material || 'N/A' }}</span>
-              </div>
-              <div class="detail-item">
-                <span class="label">Purchase Date:</span>
-                <span>{{ formatDate(selectedClothing.purchase_date) }}</span>
-              </div>
-              <div class="detail-item">
-                <span class="label">Price:</span>
-                <span>{{ selectedClothing.price ? `$${selectedClothing.price}` : 'N/A' }}</span>
-              </div>
-              <div class="detail-item">
-                <span class="label">Added:</span>
-                <span>{{ formatDate(selectedClothing.created_at) }}</span>
-              </div>
-            </div>
-          </div>
-
-          <div v-if="selectedClothing.notes" class="detail-section">
-            <h3>Notes</h3>
-            <p>{{ selectedClothing.notes }}</p>
-          </div>
-
-          <div class="action-buttons">
-            <button class="btn-edit" @click="editClothing">Edit</button>
-            <button class="btn-delete" @click="deleteClothing">Delete</button>
-          </div>
+            <div class="detail-item"><span class="label">Material:</span> {{ selectedClothing.material }}</div>
+            <div class="detail-item"><span class="label">Price:</span> {{ selectedClothing.price }}</div>
+        </div>
+        <div class="action-buttons">
+          <button class="btn-edit" @click="editClothing">Edit</button>
+          <button class="btn-delete" @click="deleteClothing">Delete</button>
         </div>
       </div>
     </div>
 
-    <!-- 添加/编辑衣物模态框 -->
     <div v-if="showAddModal" class="modal-overlay" @click="closeAddModal">
       <div class="add-modal" @click.stop>
-        <h2>{{ editingClothing ? 'Edit Item' : 'Add New Item' }}</h2>
-        
+        <h2>{{ editingClothingId ? 'Edit Item' : 'Add New Item' }}</h2>
         <form @submit.prevent="saveClothing">
           <div class="form-grid">
             <div class="form-group">
-              <label>Name *</label>
-              <input v-model="newClothing.name" required />
+              <label>Name</label><input v-model="formData.name" required />
             </div>
-            
             <div class="form-group">
-              <label>Brand</label>
-              <input v-model="newClothing.brand" />
+               <label>Category</label>
+               <select v-model="formData.category_id" required>
+                 <option v-for="c in categories" :key="c.category_id" :value="c.category_id">
+                   {{ c.category_name }}
+                 </option>
+               </select>
             </div>
-            
             <div class="form-group">
-              <label>Category *</label>
-              <select v-model="newClothing.category_id" required>
-                <option value="">Select Category</option>
-                <option 
-                  v-for="cat in categories" 
-                  :key="cat.category_id" 
-                  :value="cat.category_id"
-                >
-                  {{ cat.category_name }}
-                </option>
-              </select>
+              <label>Image URL</label><input v-model="formData.image_url" placeholder="http://... or /static/..." />
             </div>
-            
-            <div class="form-group">
-              <label>Color</label>
-              <input v-model="newClothing.color" />
             </div>
-            
-            <div class="form-group">
-              <label>Season</label>
-              <select v-model="newClothing.season">
-                <option value="">Select Season</option>
-                <option value="Spring">Spring</option>
-                <option value="Summer">Summer</option>
-                <option value="Autumn">Autumn</option>
-                <option value="Winter">Winter</option>
-              </select>
-            </div>
-            
-            <div class="form-group">
-              <label>Style</label>
-              <input v-model="newClothing.style" />
-            </div>
-            
-            <div class="form-group">
-              <label>Material</label>
-              <input v-model="newClothing.material" />
-            </div>
-            
-            <div class="form-group">
-              <label>Price</label>
-              <input v-model="newClothing.price" type="number" step="0.01" />
-            </div>
-            
-            <div class="form-group">
-              <label>Purchase Date</label>
-              <input v-model="newClothing.purchase_date" type="date" />
-            </div>
-            
-            <div class="form-group full-width">
-              <label>Image URL</label>
-              <input v-model="newClothing.image_url" />
-            </div>
-            
-            <div class="form-group full-width">
-              <label>Notes</label>
-              <textarea v-model="newClothing.notes" rows="3"></textarea>
-            </div>
-          </div>
-          
           <div class="form-actions">
             <button type="button" @click="closeAddModal">Cancel</button>
-            <button type="submit">{{ editingClothing ? 'Update' : 'Add' }} Item</button>
+            <button type="submit">Save</button>
           </div>
         </form>
       </div>
     </div>
+
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, reactive } from 'vue'
-import axios from 'axios'
+import { ref, reactive, onMounted } from 'vue'
+import request from '../utils/request' // 为了分用户我加了这个
 
-// 响应式数据
+// 状态定义
 const categories = ref([])
 const clothes = ref([])
 const selectedCategory = ref(null)
@@ -230,64 +139,91 @@ const selectedClothing = ref(null)
 const showClothingDetail = ref(false)
 const showAddModal = ref(false)
 const searchQuery = ref('')
-const editingClothing = ref(null)
+const editingClothingId = ref(null)
 
-const newClothing = reactive({
-  user_id: 1,
+// 表单数据
+const formData = reactive({
   name: '',
-  brand: '',
   category_id: '',
+  brand: '',
   color: '',
   season: '',
   style: '',
   material: '',
   price: null,
-  purchase_date: '',
   image_url: '',
   notes: ''
 })
 
-// 生命周期钩子
-onMounted(() => {
-  fetchCategories()
-})
-
-// API调用
 const fetchCategories = async () => {
   try {
-    const response = await axios.get('http://localhost:8000/api/closet/categories')
-    categories.value = response.data
+    // [修复] request 会自动带 Token
+    const res = await request.get('/api/closet/categories') 
+    
+    // [修复] 直接用 res
+    categories.value = res 
   } catch (error) {
-    console.error('Failed to fetch categories:', error)
+    console.error('获取分类失败', error)
   }
 }
 
 const fetchClothesByCategory = async (categoryId) => {
   try {
-    const response = await axios.get(`http://localhost:8000/api/closet/category/${categoryId}`)
-    clothes.value = response.data.clothes
+    const res = await request.get(`/api/closet/category/${categoryId}`)
+    clothes.value = res.clothes
   } catch (error) {
-    console.error('Failed to fetch clothes:', error)
+    console.error('获取衣物失败', error)
   }
 }
 
-const searchClothes = async () => {
+const handleSearch = async () => {
+  if (!searchQuery.value) return
   try {
-    const params = {}
-    if (searchQuery.value) params.query = searchQuery.value
-    if (selectedCategory.value) params.category_id = selectedCategory.value.category_id
+    const res = await request.get('/api/closet/items/search', {
+      params: { query: searchQuery.value }
+    })
     
-    const response = await axios.get('http://localhost:8000/api/closet/items/search', { params })
-    clothes.value = response.data
+    // 这里简单处理：如果没选分类，就没有地方展示搜索结果列表，
+    console.log('搜索结果', res)
+  } catch (e) {}
+}
+
+const saveClothing = async () => {
+  try {
+    const payload = { ...formData }
+    payload.price = payload.price ? parseFloat(payload.price) : null
+    
+    // 不再传递 user_id，后端会从 Token 获取
+    if (editingClothingId.value) {
+      await request.put(`/api/closet/items/${editingClothingId.value}`, payload)
+    } else {
+      await request.post('/api/closet/items', payload)
+    }
+    
+    closeAddModal()
+    if (selectedCategory.value) {
+      fetchClothesByCategory(selectedCategory.value.category_id)
+    }
+    fetchCategories()
   } catch (error) {
-    console.error('Failed to search clothes:', error)
+    console.error(error)
   }
 }
 
-// 事件处理
-const selectCategory = (category) => {
-  selectedCategory.value = category
-  fetchClothesByCategory(category.category_id)
+const deleteClothing = async () => {
+  if(!confirm('确定删除?')) return
+  try {
+    await request.delete(`/api/closet/items/${selectedClothing.value.item_id}`)
+    showClothingDetail.value = false
+    if (selectedCategory.value) fetchClothesByCategory(selectedCategory.value.category_id)
+    fetchCategories()
+  } catch (e) {}
+}
+
+
+const selectCategory = (cat) => {
+  selectedCategory.value = cat
+  fetchClothesByCategory(cat.category_id)
 }
 
 const selectClothing = (item) => {
@@ -295,428 +231,81 @@ const selectClothing = (item) => {
   showClothingDetail.value = true
 }
 
-const closeDetail = () => {
-  showClothingDetail.value = false
-  selectedClothing.value = null
-}
-
-const handleSearch = () => {
-  if (!selectedCategory.value) return
-  searchClothes()
-}
-
-const getCategoryEmoji = (type) => {
-  const emojis = {
-    'top': '👕',
-    'bottom': '👖',
-    'outerwear': '🧥',
-    'dress': '👗',
-    'shoes': '👟',
-    'other': '👜'
-  }
-  return emojis[type] || '👚'
-}
-
-const formatDate = (dateString) => {
-  if (!dateString) return 'N/A'
-  return new Date(dateString).toLocaleDateString()
+const openAddModal = () => {
+  editingClothingId.value = null
+  resetForm()
+  showAddModal.value = true
 }
 
 const editClothing = () => {
-  editingClothing.value = selectedClothing.value.item_id
-  Object.assign(newClothing, {
-    ...selectedClothing.value,
-    purchase_date: selectedClothing.value.purchase_date 
-      ? new Date(selectedClothing.value.purchase_date).toISOString().split('T')[0]
-      : ''
-  })
+  editingClothingId.value = selectedClothing.value.item_id
+  Object.assign(formData, selectedClothing.value)
   showClothingDetail.value = false
   showAddModal.value = true
 }
 
-const deleteClothing = async () => {
-  if (!confirm('Are you sure you want to delete this item?')) return
-  
-  try {
-    await axios.delete(`http://localhost:8000/api/closet/items/${selectedClothing.value.item_id}`)
-    showClothingDetail.value = false
-    if (selectedCategory.value) {
-      fetchClothesByCategory(selectedCategory.value.category_id)
-    }
-  } catch (error) {
-    console.error('Failed to delete clothing:', error)
+const closeDetail = () => { showClothingDetail.value = false }
+const closeAddModal = () => { showAddModal.value = false }
+
+const resetForm = () => {
+  Object.keys(formData).forEach(k => formData[k] = '')
+  formData.price = null
+}
+
+const getCategoryEmoji = (type) => {
+  const map = {
+    'top': '👕', 'bottom': '👖', 'outerwear': '🧥',
+    'dress': '👗', 'shoes': '👟', 'other': '👜'
   }
+  return map[type] || '📦'
 }
 
-const saveClothing = async () => {
-  try {
-    const clothingData = {
-      ...newClothing,
-      user_id: newClothing.user_id || 1,  // 确保有值
-      purchase_date: newClothing.purchase_date || null,
-    }
-
-    if (editingClothing.value) {
-      await axios.put(
-        `http://localhost:8000/api/closet/items/${editingClothing.value}`,
-        newClothing
-      )
-    } else {
-      await axios.post('http://localhost:8000/api/closet/items', newClothing)
-    }
-    
-    closeAddModal()
-    if (selectedCategory.value) {
-      fetchClothesByCategory(selectedCategory.value.category_id)
-    } else {
-      fetchCategories()
-    }
-  } catch (error) {
-    console.error('Failed to save clothing:', error)
-    console.error('错误详情:', error.response?.data)
-  }
+// 图片路径处理
+const getImageUrl = (url) => {
+  if (!url) return '/placeholder.png' // 这里的 placeholder 自己找个图或者删掉
+  if (url.startsWith('http')) return url
+  return `http://127.0.0.1:8000${url}`
 }
 
-const closeAddModal = () => {
-  showAddModal.value = false
-  editingClothing.value = null
-  const currentUserId = newClothing.user_id
-  Object.keys(newClothing).forEach(key => {
-    newClothing[key] = ''
-  })
-  newClothing.user_id = currentUserId || 1
-}
+onMounted(() => {
+  fetchCategories()
+})
 </script>
 
 <style scoped>
-.my-closet {
-  padding: 20px;
-}
 
-.search-bar {
-  margin-bottom: 30px;
-}
+.my-closet { padding: 20px; font-family: 'Inter', sans-serif; }
+.search-bar h1 { margin: 0 0 5px 0; color: #1e293b; }
+.welcome { color: #64748b; margin-bottom: 20px; font-size: 14px; }
+.search-container { display: flex; gap: 10px; margin-bottom: 30px; }
+.search-input { flex: 1; padding: 10px 15px; border: 1px solid #cbd5e1; border-radius: 8px; }
+.add-btn { background: #6366f1; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; }
 
-.welcome {
-  color: #666;
-  margin-bottom: 20px;
-}
+.categories-grid h2 { margin-bottom: 20px; }
+.categories { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 20px; }
+.category-card { background: white; padding: 20px; border-radius: 12px; text-align: center; border: 1px solid #e2e8f0; cursor: pointer; transition: 0.2s; }
+.category-card:hover { border-color: #6366f1; transform: translateY(-3px); box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+.category-icon { font-size: 32px; margin-bottom: 10px; }
+.item-count { color: #94a3b8; font-size: 12px; }
 
-.search-container {
-  display: flex;
-  gap: 15px;
-  max-width: 600px;
-}
+.clothes-grid .breadcrumb { display: flex; align-items: baseline; gap: 15px; margin-bottom: 20px; }
+.back-btn { background: none; border: none; color: #6366f1; cursor: pointer; font-weight: 600; }
+.clothes { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 20px; }
+.clothing-card { border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; cursor: pointer; }
+.clothing-image { height: 200px; background: #f8fafc; }
+.clothing-image img { width: 100%; height: 100%; object-fit: cover; }
+.clothing-info { padding: 10px; }
+.clothing-info h4 { margin: 5px 0; font-size: 14px; }
 
-.search-input {
-  flex: 1;
-  padding: 12px 20px;
-  border: 2px solid #e0e0e0;
-  border-radius: 8px;
-  font-size: 16px;
-}
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; z-index: 100; }
+.clothing-detail, .add-modal { background: white; padding: 30px; border-radius: 12px; width: 500px; max-width: 90%; position: relative; }
+.close-btn { position: absolute; top: 15px; right: 15px; border: none; background: none; font-size: 20px; cursor: pointer; }
+.detail-header { display: flex; gap: 20px; margin-bottom: 20px; }
+.detail-image { width: 120px; height: 160px; object-fit: cover; border-radius: 8px; background: #f1f5f9; }
 
-.add-btn {
-  background: #4f46e5;
-  color: white;
-  border: none;
-  padding: 12px 24px;
-  border-radius: 8px;
-  cursor: pointer;
-  font-weight: 500;
-}
-
-.categories-grid h2 {
-  margin-bottom: 20px;
-}
-
-.categories {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 20px;
-  margin-bottom: 40px;
-}
-
-.category-card {
-  background: white;
-  border-radius: 12px;
-  padding: 25px;
-  text-align: center;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  border: 2px solid #f0f0f0;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-}
-
-.category-card:hover {
-  transform: translateY(-5px);
-  border-color: #4f46e5;
-  box-shadow: 0 5px 20px rgba(79, 70, 229, 0.1);
-}
-
-.category-icon {
-  font-size: 40px;
-  margin-bottom: 15px;
-}
-
-.item-count {
-  color: #666;
-  font-size: 14px;
-}
-
-.clothes {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-  gap: 25px;
-  margin-top: 30px;
-}
-
-.clothing-card {
-  background: white;
-  border-radius: 12px;
-  overflow: hidden;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-}
-
-.clothing-card:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 5px 20px rgba(0,0,0,0.1);
-}
-
-.clothing-image {
-  height: 180px;
-  overflow: hidden;
-}
-
-.clothing-image img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  transition: transform 0.3s ease;
-}
-
-.clothing-card:hover .clothing-image img {
-  transform: scale(1.05);
-}
-
-.clothing-info {
-  padding: 15px;
-}
-
-.brand {
-  color: #666;
-  font-size: 12px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  margin-bottom: 5px;
-}
-
-.tags {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-  margin-top: 10px;
-}
-
-.tag {
-  padding: 4px 12px;
-  border-radius: 20px;
-  font-size: 12px;
-  font-weight: 500;
-}
-
-.tag.season {
-  background: #e0f2fe;
-  color: #0369a1;
-}
-
-.tag.style {
-  background: #fef3c7;
-  color: #92400e;
-}
-
-.tag.color {
-  background: #f1f5f9;
-  color: #475569;
-}
-
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0,0,0,0.5);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 1000;
-}
-
-.clothing-detail {
-  background: white;
-  border-radius: 16px;
-  width: 90%;
-  max-width: 800px;
-  max-height: 90vh;
-  overflow-y: auto;
-  padding: 30px;
-  position: relative;
-}
-
-.close-btn {
-  position: absolute;
-  top: 20px;
-  right: 20px;
-  background: none;
-  border: none;
-  font-size: 24px;
-  cursor: pointer;
-  color: #666;
-}
-
-.detail-header {
-  display: flex;
-  gap: 30px;
-  margin-bottom: 30px;
-}
-
-.detail-image {
-  width: 250px;
-  height: 300px;
-  object-fit: cover;
-  border-radius: 12px;
-}
-
-.detail-info {
-  flex: 1;
-}
-
-.detail-section {
-  margin-bottom: 25px;
-}
-
-.details-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 15px;
-}
-
-.detail-item {
-  display: flex;
-  justify-content: space-between;
-  padding: 10px 0;
-  border-bottom: 1px solid #f0f0f0;
-}
-
-.label {
-  font-weight: 500;
-  color: #666;
-}
-
-.action-buttons {
-  display: flex;
-  gap: 15px;
-  margin-top: 30px;
-}
-
-.btn-edit, .btn-delete {
-  padding: 10px 24px;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-  font-weight: 500;
-}
-
-.btn-edit {
-  background: #4f46e5;
-  color: white;
-}
-
-.btn-delete {
-  background: #ef4444;
-  color: white;
-}
-
-.add-modal {
-  background: white;
-  border-radius: 16px;
-  width: 90%;
-  max-width: 800px;
-  max-height: 90vh;
-  overflow-y: auto;
-  padding: 30px;
-}
-
-.form-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 20px;
-  margin: 25px 0;
-}
-
-.form-group {
-  margin-bottom: 15px;
-}
-
-.form-group.full-width {
-  grid-column: 1 / -1;
-}
-
-.form-group label {
-  display: block;
-  margin-bottom: 8px;
-  font-weight: 500;
-  color: #333;
-}
-
-.form-group input,
-.form-group select,
-.form-group textarea {
-  width: 100%;
-  padding: 10px;
-  border: 1px solid #ddd;
-  border-radius: 6px;
-  font-size: 14px;
-}
-
-.form-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 15px;
-  margin-top: 30px;
-}
-
-.form-actions button {
-  padding: 10px 24px;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-  font-weight: 500;
-}
-
-.form-actions button[type="submit"] {
-  background: #4f46e5;
-  color: white;
-}
-
-.breadcrumb {
-  margin-bottom: 30px;
-}
-
-.back-btn {
-  background: none;
-  border: none;
-  color: #4f46e5;
-  cursor: pointer;
-  padding: 0;
-  margin-bottom: 10px;
-  font-size: 14px;
-}
-
-.back-btn:hover {
-  text-decoration: underline;
-}
+.form-grid { display: grid; gap: 15px; margin: 20px 0; }
+.form-group { display: flex; flex-direction: column; gap: 5px; }
+.form-group input, .form-group select { padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; }
+.form-actions { display: flex; justify-content: flex-end; gap: 10px; }
+.empty-state { color: #94a3b8; text-align: center; padding: 40px; }
 </style>
