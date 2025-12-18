@@ -118,11 +118,14 @@ class Category(CategoryBase):
     class Config:
         orm_mode = True
 
-class ClothingItemBase(BaseModel):
+
+# 拆分：前端提交用的基础模型（无 user_id）
+class ClothingItemCreateBase(BaseModel):
     name: str
     brand: Optional[str] = None
     color: Optional[str] = None
     season: Optional[str] = None
+    occasion: Optional[str] = None
     style: Optional[str] = None
     material: Optional[str] = None
     purchase_date: Optional[date] = None
@@ -130,7 +133,6 @@ class ClothingItemBase(BaseModel):
     image_url: Optional[str] = None
     notes: Optional[str] = None
     category_id: int
-    user_id: int
 
     @validator('purchase_date', pre=True)
     def empty_str_to_none(cls, v):
@@ -138,15 +140,24 @@ class ClothingItemBase(BaseModel):
             return None
         return v
 
-class ClothingItemCreate(ClothingItemBase):
+
+# 前端提交的创建模型（仅继承无 user_id 的基类）
+class ClothingItemCreate(ClothingItemCreateBase):
     tag_ids: Optional[List[int]] = []
 
+
+# 数据库/返回前端的基础模型（包含 user_id）
+class ClothingItemBase(ClothingItemCreateBase):
+    user_id: int  # 仅在返回/数据库模型中包含 user_id
+
+
+# 最终返回给前端的衣物模型
 class ClothingItem(ClothingItemBase):
     item_id: int
     created_at: datetime
     category: Optional[Category] = None
     tags: List[Tag] = []
-    
+
     class Config:
         orm_mode = True
 

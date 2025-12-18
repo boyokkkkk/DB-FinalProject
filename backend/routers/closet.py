@@ -70,29 +70,43 @@ def search_items(
     user_id: int = Depends(security.get_current_user_id) # [新增]
 ):
     """搜索衣物 (仅限当前用户)"""
-    filters = [models.ClothingItem.user_id == user_id]
-    
-    if query:
-        filters.append(
-            or_(
-                models.ClothingItem.name.ilike(f"%{query}%"),
-                models.ClothingItem.brand.ilike(f"%{query}%"),
-                models.ClothingItem.color.ilike(f"%{query}%")
+    try:
+        filters = [models.ClothingItem.user_id == user_id]
+
+        if query:
+            query_str = f"%{query}%"
+            filters.append(
+                or_(
+                    models.ClothingItem.name.ilike(query_str),
+                    models.ClothingItem.brand.ilike(query_str),
+                    models.ClothingItem.color.ilike(query_str),
+                    models.ClothingItem.season.ilike(query_str),
+                    models.ClothingItem.style.ilike(query_str),
+                    models.ClothingItem.occasion.ilike(query_str)
+                )
             )
-        )
-    if category_id:
-        filters.append(models.ClothingItem.category_id == category_id)
-    if color:
-        filters.append(models.ClothingItem.color.ilike(f"%{color}%"))
-    if season:
-        filters.append(models.ClothingItem.season.ilike(f"%{season}%"))
-    
-    items = db.query(models.ClothingItem)\
-              .filter(*filters)\
-              .offset(skip)\
-              .limit(limit)\
-              .all()
-    return items
+        if category_id:
+            filters.append(models.ClothingItem.category_id == category_id)
+        if color:
+            filters.append(models.ClothingItem.color.ilike(f"%{color}%"))
+        if season:
+            filters.append(models.ClothingItem.season.ilike(f"%{season}%"))
+
+        # 纯SELECT查询，无多余JOIN
+        items = db.query(models.ClothingItem) \
+            .filter(*filters) \
+            .distinct() \
+            .offset(skip) \
+            .limit(limit) \
+            .all()
+
+        return items
+
+    except Exception as e:
+        # 异常时手动回滚 + 精准报错
+        db.rollback()
+        print(f"搜索异常详情: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"搜索失败: {str(e)}")
 
 @router.get("/items/{item_id}", response_model=schemas.ClothingItem)
 def get_item(
@@ -120,7 +134,8 @@ def create_item(
     try:
         # 忽略前端传来的 user_id，强制使用 Token 中的 user_id
         item_data = item.dict()
-        item_data['user_id'] = user_id 
+        item_data['user_id'] = user_id
+        print(user_id)
         
         tag_ids = item_data.pop('tag_ids', [])
 
@@ -165,20 +180,26 @@ def update_item(
                 .first()
     if not db_item:
         raise HTTPException(status_code=404, detail="Item not found")
-    
-    # 不允许修改 user_id
-    update_data = item_update.dict(exclude={'tag_ids', 'user_id'})
-    for key, value in update_data.items():
-        setattr(db_item, key, value)
-    
-    if item_update.tag_ids is not None:
-        db.execute(models.clothing_tags.delete().where(models.clothing_tags.c.item_id == item_id))
-        for tag_id in item_update.tag_ids:
-            db.execute(models.clothing_tags.insert().values(item_id=item_id, tag_id=tag_id))
-    
-    db.commit()
-    db.refresh(db_item)
-    return db_item
+
+    try:
+        # 不允许修改 user_id
+        update_data = item_update.dict(exclude={'tag_ids', 'user_id'})
+        for key, value in update_data.items():
+            setattr(db_item, key, value)
+
+        if item_update.tag_ids is not None:
+            db.execute(models.clothing_tags.delete().where(models.clothing_tags.c.item_id == item_id))
+            for tag_id in item_update.tag_ids:
+                db.execute(models.clothing_tags.insert().values(item_id=item_id, tag_id=tag_id))
+
+        db.commit()
+        db.refresh(db_item)
+        return db_item
+    except Exception as e:
+        # 修复：捕获异常并打印，避免静默回滚
+        db.rollback()
+        print(f"更新失败：{str(e)}")
+        raise HTTPException(status_code=500, detail=f"Update failed: {str(e)}")
 
 @router.delete("/items/{item_id}")
 def delete_item(

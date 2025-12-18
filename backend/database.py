@@ -15,14 +15,16 @@ registry.register(
     "OpenGaussDialect_psycopg2"
 )
 
-DB_USER = "cby"
-DB_PASS = "Cby1234#"
+DB_USER = "dbuser"
+DB_PASS = "Cby@1234"
+encoded_password = quote_plus(DB_PASS)
 DB_HOST = "127.0.0.1"
 DB_PORT = "15432"
 DB_NAME = "finalpro_db"
-SQLALCHEMY_DATABASE_URL = f"opengauss+psycopg2://{DB_USER}:{DB_PASS}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+SQLALCHEMY_DATABASE_URL = f"opengauss://{DB_USER}:{encoded_password}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+print(f"{SQLALCHEMY_DATABASE_URL}")
 
-# �������ݿ�����
+
 engine = create_engine(
     SQLALCHEMY_DATABASE_URL,
     pool_pre_ping=True,
