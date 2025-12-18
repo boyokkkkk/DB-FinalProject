@@ -8,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from database import engine, Base
 from routers.user_router import router as user_router
 from routers.outfit_router import router as outfit_router
+from routers import wishlist
 import models
 from routers import closet  # 导入路由
 
@@ -45,6 +46,7 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 app.include_router(user_router)
 app.include_router(closet.router)
 app.include_router(outfit_router)
+app.include_router(wishlist.router)
 
 
 # ===================== 7. 根路由 =====================

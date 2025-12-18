@@ -163,3 +163,76 @@ class ClothingItem(ClothingItemBase):
 
 class CategoryWithClothes(Category):
     clothes: List[ClothingItem] = []
+
+
+class WishlistItemBase(BaseModel):
+    name: str
+    brand: Optional[str] = None
+    color: Optional[str] = None
+    season: Optional[str] = None
+    occasion: Optional[str] = None
+    style: Optional[str] = None
+    material: Optional[str] = None
+    category_id: Optional[int] = None
+    price: Optional[float] = None
+    image_url: Optional[str] = None
+    notes: Optional[str] = None
+    tag_ids: Optional[List[int]] = []
+
+    class Config:
+        from_attributes = True
+
+
+class WishlistItemCreate(WishlistItemBase):
+    pass
+
+
+class WishlistItemUpdate(BaseModel):
+    name: Optional[str] = None
+    brand: Optional[str] = None
+    color: Optional[str] = None
+    season: Optional[str] = None
+    occasion: Optional[str] = None
+    style: Optional[str] = None
+    material: Optional[str] = None
+    category_id: Optional[int] = None
+    price: Optional[float] = None
+    image_url: Optional[str] = None
+    notes: Optional[str] = None
+    tag_ids: Optional[List[int]] = None
+    added_to_closet: Optional[bool] = None
+
+
+class WishlistItem(WishlistItemBase):
+    wishlist_id: int
+    user_id: int
+    added_to_closet: bool
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class WishlistItemWithTags(WishlistItem):
+    tags: List[Tag] = []
+    category: Optional[Category] = None
+
+
+class SimilarClothingItem(BaseModel):
+    item_id: int
+    name: str
+    brand: Optional[str] = None
+    color: Optional[str] = None
+    season: Optional[str] = None
+    occasion: Optional[str] = None
+    style: Optional[str] = None
+    category: Optional[str] = None  # 新增：分类名称
+    image_url: Optional[str] = None  # 新增：图片URL
+    price: Optional[float] = None  # 新增：价格
+    similarity_score: float
+    match_fields: List[str]
+    match_details: Optional[dict] = None  # 新增：详细匹配信息
+
+    class Config:
+        from_attributes = True

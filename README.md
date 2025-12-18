@@ -37,3 +37,14 @@ npm run dev
 
 ![alt text](README_images/4.png)
 ![alt text](README_images/5.png)
+
+## cyx12.19
+实现衣橱搜索功能，修改衣物添加和详细的前端ui；
+![alt text](README_images/img_1.png)
+![alt text](README_images/img_2.png)
+![alt text](README_images/img_3.png)
+实现心愿单，ui会再改改；（添加了新数据库表）
+![alt text](README_images/img1.png)
+
+后端uvicorn main:app --reload
+前端npm run dev

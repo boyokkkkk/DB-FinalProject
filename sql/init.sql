@@ -101,16 +101,64 @@ CREATE TABLE outfit_ref (
 );
 
 -- ==========================================
--- 5. 索引优化
+-- 5. 心愿单 (wishlist_items)
+-- ==========================================
+-- 创建心愿单表，与 clothing_items 结构类似但独立
+CREATE TABLE wishlist_items (
+    wishlist_id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+    name VARCHAR(100) NOT NULL,
+    brand VARCHAR(50),
+    color VARCHAR(30),
+    season VARCHAR(20),
+    occasion VARCHAR(50),
+    style VARCHAR(50),
+    material VARCHAR(100),
+    category_id INTEGER REFERENCES categories(category_id),
+    price DECIMAL(10, 2),
+    image_url TEXT,
+    notes TEXT,
+    added_to_closet BOOLEAN DEFAULT FALSE, -- 是否已添加到衣橱
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 创建心愿单标签关联表（与衣橱类似）
+CREATE TABLE wishlist_tags (
+    wishlist_id INTEGER NOT NULL REFERENCES wishlist_items(wishlist_id) ON DELETE CASCADE,
+    tag_id INTEGER NOT NULL REFERENCES tags(tag_id) ON DELETE CASCADE,
+    PRIMARY KEY (wishlist_id, tag_id)
+);
+
+-- 创建触发器更新 updated_at
+CREATE OR REPLACE FUNCTION update_wishlist_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = CURRENT_TIMESTAMP;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER wishlist_updated_at_trigger
+BEFORE UPDATE ON wishlist_items
+FOR EACH ROW
+EXECUTE FUNCTION update_wishlist_updated_at();
+
+-- ==========================================
+-- 6. 索引优化
 -- ==========================================
 CREATE INDEX idx_clothing_items_category ON clothing_items(category_id);
 CREATE INDEX idx_clothing_items_user ON clothing_items(user_id);
 CREATE INDEX idx_clothing_items_name ON clothing_items(name);
 CREATE INDEX idx_clothing_tags_item ON clothing_tags(item_id);
 CREATE INDEX idx_outfit_user ON outfit(user_id);
+-- 为 wishlist_items 添加索引
+CREATE INDEX idx_wishlist_user ON wishlist_items(user_id);
+CREATE INDEX idx_wishlist_category ON wishlist_items(category_id);
+CREATE INDEX idx_wishlist_added ON wishlist_items(added_to_closet);
 
 -- ==========================================
--- 6. 初始化数据
+-- 7. 初始化数据
 -- ==========================================
 
 -- 初始化分类
@@ -139,3 +187,4 @@ INSERT INTO tags (tag_name, tag_type) SELECT '正式', 'occasion' WHERE NOT EXIS
 INSERT INTO tags (tag_name, tag_type) SELECT '运动', 'occasion' WHERE NOT EXISTS (SELECT 1 FROM tags WHERE tag_name = '运动' AND tag_type = 'occasion');
 
 SELECT '数据库初始化完成！表结构已统一。' AS message;
+

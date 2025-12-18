@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text, Boolean, UniqueConstraint, func, Float, Date, Table
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text, Boolean, UniqueConstraint, func, Float, Date, Table ,Numeric
 from sqlalchemy.orm import relationship
 from database import Base
 from datetime import datetime
@@ -13,6 +13,13 @@ clothing_tags = Table(
     UniqueConstraint('item_id', 'tag_id', name='uq_clothing_tags')
 )
 
+wishlist_tags = Table(
+    'wishlist_tags',
+    Base.metadata,
+    Column('wishlist_id', Integer, ForeignKey('wishlist_items.wishlist_id'), primary_key=True),
+    Column('tag_id', Integer, ForeignKey('tags.tag_id'), primary_key=True)
+)
+
 class User(Base):
     __tablename__ = "sys_user"
 
@@ -23,6 +30,7 @@ class User(Base):
     create_time = Column(DateTime(timezone=True), server_default=func.now())
 
     clothing_items = relationship("ClothingItem", back_populates="user", cascade="all, delete-orphan")
+    wishlist_items = relationship("WishlistItem", back_populates="user", cascade="all, delete-orphan")
 
 class Category(Base):
     __tablename__ = 'categories'
@@ -68,6 +76,7 @@ class Tag(Base):
     tag_type = Column(String(20), nullable=False)
     
     clothes = relationship("ClothingItem", secondary=clothing_tags, back_populates="tags")
+    wishlist_items = relationship("WishlistItem", secondary=wishlist_tags, back_populates="tags")
 
 class Outfit(Base):
     __tablename__ = "outfit"
@@ -102,3 +111,29 @@ class OutfitRef(Base):
     outfit = relationship("Outfit", back_populates="items")
     # [修改] 关联到 ClothingItem
     item = relationship("ClothingItem", back_populates="outfit_references")
+
+
+class WishlistItem(Base):
+    __tablename__ = 'wishlist_items'
+
+    wishlist_id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey('sys_user.user_id'), nullable=False)
+    name = Column(String(100), nullable=False)
+    brand = Column(String(50))
+    color = Column(String(30))
+    season = Column(String(20))
+    occasion = Column(String(50))
+    style = Column(String(50))
+    material = Column(String(100))
+    category_id = Column(Integer, ForeignKey('categories.category_id'))
+    price = Column(Numeric(10, 2))
+    image_url = Column(Text)
+    notes = Column(Text)
+    added_to_closet = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # 关系定义
+    user = relationship("User", back_populates="wishlist_items")
+    category = relationship("Category")
+    tags = relationship("Tag", secondary="wishlist_tags", back_populates="wishlist_items")
