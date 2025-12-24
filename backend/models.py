@@ -87,7 +87,8 @@ class Outfit(Base):
     description = Column(Text, nullable=True)
     season = Column(String(50))
     style = Column(String(50))
-    image_url = Column(String(255), nullable=True) 
+    image_url = Column(String(255), nullable=True)
+    meta_data = Column(Text, nullable=True)
     create_time = Column(DateTime(timezone=True), server_default=func.now())
     
     items = relationship("OutfitRef", back_populates="outfit", cascade="all, delete-orphan")

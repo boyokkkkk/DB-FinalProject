@@ -46,6 +46,7 @@ class OutfitCreate(BaseModel):
     season: Optional[str] = None
     style: Optional[str] = None
     image_url: Optional[str] = None # canvas image
+    meta_data: Optional[str] = None
     items: List[OutfitItemCreate] # items list
 
 class OutfitItemDetailOut(BaseModel):
@@ -73,10 +74,20 @@ class OutfitDetailOut(BaseModel):
     style: Optional[str] = None
     image_url: Optional[str] = None
     create_time: datetime
+    meta_data: Optional[str] = None
     items: List[OutfitItemDetailOut] # items info&pos
 
     class Config:
         from_attributes = True
+
+class OutfitUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    season: Optional[str] = None
+    style: Optional[str] = None
+    image_url: Optional[str] = None
+    meta_data: Optional[str] = None
+    items: Optional[List[OutfitItemCreate]] = None
     
 class OutfitOut(BaseModel):
     outfit_id: int

@@ -5,12 +5,14 @@ from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
 from database import engine, Base
 from routers.user_router import router as user_router
 from routers.outfit_router import router as outfit_router
+from routers.upload_router import router as upload_router
 from routers import wishlist
 import models
-from routers import closet  # 导入路由
+from routers import closet
 
 # ===================== 1. 配置日志（打印详细错误） =====================
 logging.basicConfig(
@@ -31,11 +33,22 @@ app = FastAPI(title="DbFinalProject Backend API", debug=True)
 # ===================== 4. 跨域中间件 =====================
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # 允许任何前端端口访问
+    allow_origins=["http://localhost:5173"],  # 允许任何前端端口访问
     allow_credentials=True,
     allow_methods=["*"],  # 允许 GET, POST, PUT, DELETE 等所有方法
     allow_headers=["*"],  # 允许所有 Header
 )
+
+class ForceCORSHeadersMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request, call_next):
+        response = await call_next(request)
+        response.headers["Access-Control-Allow-Origin"] = "http://localhost:5173"
+        response.headers["Access-Control-Allow-Credentials"] = "true"
+        response.headers["Access-Control-Allow-Methods"] = "*"
+        response.headers["Access-Control-Allow-Headers"] = "*"
+        return response
+
+app.add_middleware(ForceCORSHeadersMiddleware)
 
 # ===================== 5. 静态文件配置 =====================
 if not os.path.exists("static"):
@@ -47,6 +60,7 @@ app.include_router(user_router)
 app.include_router(closet.router)
 app.include_router(outfit_router)
 app.include_router(wishlist.router)
+app.include_router(upload_router)
 
 
 # ===================== 7. 根路由 =====================

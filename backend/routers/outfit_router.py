@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from typing import List
+import os
 
 from database import get_db
 import models
@@ -34,24 +35,16 @@ def get_user_items(
         .all()
     )
 
-    # 构造前端友好的数据格式
     result = []
     for item, cat_type, cat_name in items:
-        # 将数据库的分类类型映射到前端 Tabs 需要的 Key (Top, Bottom, Shoes, Accessory)
-        # 假设数据库里 category_type 是 'top', 'bottom', 'shoes', 'other'
-        mapped_cat = "Accessory" # 默认
-        if cat_type and cat_type.lower() in ['top', 'outerwear', 'dress']:
-            mapped_cat = 'Top'
-        elif cat_type and cat_type.lower() in ['bottom', 'pants', 'skirt']:
-            mapped_cat = 'Bottom'
-        elif cat_type and cat_type.lower() in ['shoes']:
-            mapped_cat = 'Shoes'
+        raw_cat = cat_type if cat_type else "Other"
+        display_cat = raw_cat.capitalize()
         
         result.append({
             "item_id": item.item_id,
             "name": item.name,
             "image_url": item.image_url,
-            "category": mapped_cat, # 前端用这个字段过滤
+            "category": display_cat,
             "original_category": cat_name
         })
 
@@ -79,6 +72,7 @@ def create_outfit(
         season=outfit_data.season,
         style=outfit_data.style,
         image_url=outfit_data.image_url,
+        meta_data=outfit_data.meta_data
     )
     db.add(new_outfit)
     db.commit()
@@ -102,6 +96,72 @@ def create_outfit(
     db.commit()
     
     return {"message": "搭配创建成功", "outfit_id": new_outfit.outfit_id}
+
+def delete_local_file(image_url: str):
+    if not image_url:
+        return
+    
+    # 只处理本地 static 目录下的文件
+    if image_url.startswith("/static/"):
+        try:
+            # 去掉开头的 /，拼接成相对路径 (假设运行目录在项目根目录)
+            # 例如: /static/uploads/outfits/abc.jpg -> static/uploads/outfits/abc.jpg
+            file_path = image_url.lstrip("/")
+            
+            if os.path.exists(file_path):
+                os.remove(file_path)
+                print(f"已删除旧图片: {file_path}")
+        except Exception as e:
+            print(f"删除图片失败: {e}")
+
+@router.put("/{outfit_id}")
+def update_outfit(
+    outfit_id: int,
+    outfit_update: schemas.OutfitUpdate,
+    db: Session = Depends(get_db),
+    user_id: int = Depends(security.get_current_user_id)
+):
+    # 1. 查找现有搭配
+    outfit = db.query(models.Outfit).filter(models.Outfit.outfit_id == outfit_id, models.Outfit.user_id == user_id).first()
+    if not outfit:
+        raise HTTPException(status_code=404, detail="Outfit not found")
+
+    if outfit_update.image_url is not None:
+        if outfit.image_url and outfit.image_url != outfit_update.image_url:
+            delete_local_file(outfit.image_url)
+        outfit.image_url = outfit_update.image_url
+
+    # 2. 更新基础字段
+    if outfit_update.name is not None: outfit.name = outfit_update.name
+    if outfit_update.description is not None: outfit.description = outfit_update.description
+    if outfit_update.season is not None: outfit.season = outfit_update.season
+    if outfit_update.style is not None: outfit.style = outfit_update.style
+    if outfit_update.meta_data is not None: outfit.meta_data = outfit_update.meta_data
+
+    # 3. 更新关联 Items (先删后加策略，最简单)
+    if outfit_update.items is not None:
+        # 删除旧引用
+        db.query(models.OutfitRef).filter(models.OutfitRef.outfit_id == outfit_id).delete()
+        
+        # 添加新引用
+        new_refs = []
+        for item_data in outfit_update.items:
+            ref = models.OutfitRef(
+                outfit_id=outfit_id,
+                item_id=item_data.item_id,
+                position_x=item_data.position_x,
+                position_y=item_data.position_y,
+                rotation=item_data.rotation,
+                scale_x=item_data.scale_x,
+                scale_y=item_data.scale_y,
+                z_index=item_data.z_index,
+            )
+            new_refs.append(ref)
+        db.add_all(new_refs)
+
+    db.commit()
+    db.refresh(outfit)
+    return {"message": "Updated successfully", "outfit_id": outfit.outfit_id}
 
 # ==========================================
 # 3. 获取用户所有搭配列表
@@ -192,6 +252,7 @@ def get_outfit_detail(
         style=outfit.style,
         image_url=outfit.image_url,
         create_time=outfit.create_time,
+        meta_data=outfit.meta_data,
         items=items_list
     )
 
@@ -204,6 +265,8 @@ def delete_outfit(
     outfit = db.query(models.Outfit).filter(models.Outfit.outfit_id == outfit_id, models.Outfit.user_id == user_id).first()
     if not outfit:
         raise HTTPException(status_code=404, detail="Not Found")
+    if outfit.image_url:
+        delete_local_file(outfit.image_url)
     db.delete(outfit)
     db.commit()
     return
