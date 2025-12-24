@@ -21,25 +21,17 @@
       <div class="assets-scroll-area custom-scrollbar">
         <div v-if="activeTab === 'wardrobe'" class="assets-wrapper">
           <div class="category-tags">
-             <span 
-               v-for="cat in wardrobeCats" :key="cat.key"
-               class="cat-tag" :class="{ active: activeCategory === cat.key }"
-               @click="activeCategory = cat.key"
-             >{{ cat.label }}</span>
+             <span class="cat-tag" :class="{ active: activeCategory === 'All' }" @click="activeCategory = 'All'">All</span>
+             <span v-for="cat in dynamicWardrobeCats" :key="cat" class="cat-tag" :class="{ active: activeCategory === cat }" @click="activeCategory = cat">{{ cat }}</span>
           </div>
           
           <div class="grid-2-col">
-            <div 
-              v-for="item in filteredItems" 
-              :key="item.id" 
-              class="asset-item"
-              draggable="true"
-              @dragstart="onDragStart($event, item, 'image')"
-            >
+            <div v-for="item in filteredItems" :key="item.item_id" class="asset-item" draggable="true" @dragstart="onDragStart($event, item, 'image')">
               <div class="img-holder">
-                <el-image :src="getImageUrl(item.image_url)" fit="contain" loading="lazy" class="draggable-img" />
+                <el-image :src="getImageUrl(item.image_url)" fit="contain" loading="lazy" class="draggable-img" crossorigin="anonymous" />
               </div>
             </div>
+            <div v-if="filteredItems.length === 0" class="no-items-tip">No items in this category</div>
           </div>
         </div>
 
@@ -50,9 +42,7 @@
           </div>
           <div class="section-label mt-4">Textures</div>
           <div class="grid-2-col">
-            <div v-for="tex in textures" :key="tex.name" class="asset-item texture-item" 
-                 :style="{backgroundImage: `url(${tex.url})`}"
-                 @click="setBackground('image', tex.url)">
+            <div v-for="tex in textures" :key="tex.name" class="asset-item texture-item" :style="{backgroundImage: `url(${tex.url})`}" @click="setBackground('image', tex.url)">
                <span>{{ tex.name }}</span>
             </div>
           </div>
@@ -60,19 +50,14 @@
 
         <div v-if="activeTab === 'text'" class="assets-wrapper">
            <div class="list-stack">
-             <div v-for="txt in textPresets" :key="txt.label" 
-                  class="text-preset-card" :style="{fontFamily: txt.font}"
-                  draggable="true" @dragstart="onDragStart($event, txt, 'text')">
-               {{ txt.label }}
-             </div>
+             <div v-for="txt in textPresets" :key="txt.label" class="text-preset-card" :style="{fontFamily: txt.font}" draggable="true" @dragstart="onDragStart($event, txt, 'text')">{{ txt.label }}</div>
            </div>
         </div>
 
         <div v-if="activeTab === 'sticker'" class="assets-wrapper">
            <div class="grid-3-col">
-             <div v-for="s in stickers" :key="s.id" class="sticker-item"
-                  draggable="true" @dragstart="onDragStart($event, s, 'sticker')">
-                <img :src="s.url" class="draggable-img" />
+             <div v-for="s in stickers" :key="s.id" class="sticker-item" draggable="true" @dragstart="onDragStart($event, s, 'sticker')">
+                <img :src="s.url" class="draggable-img" crossorigin="anonymous" />
              </div>
            </div>
         </div>
@@ -80,7 +65,6 @@
     </div>
 
     <div class="studio-workspace">
-      
       <div class="toolbar-island">
         <div class="left-group">
           <el-button circle plain icon="ArrowLeft" class="icon-btn" @click="$emit('back')" />
@@ -103,7 +87,7 @@
 
         <div class="actions-right">
            <el-button text bg circle icon="Delete" class="danger-icon" @click="clearCanvas" />
-           <el-button type="primary" round color="#6366f1" class="save-btn" @click="openSaveDialog">
+           <el-button type="primary" round color="#6366f1" class="save-btn" :loading="isSaving" @click="openSaveDialog">
              Save Look
            </el-button>
         </div>
@@ -130,7 +114,7 @@
                 
                 <div class="layer-content" :style="getContentStyle(el)">
                    <img v-if="el.type === 'image' || el.type === 'sticker'" 
-                        :src="el.src" draggable="false" />
+                        :src="el.src" draggable="false" crossorigin="anonymous" />
                    
                    <div v-if="el.type === 'text'" 
                         class="text-element"
@@ -186,34 +170,46 @@
       width="400px"
       align-center
       class="custom-dialog"
+      :close-on-click-modal="!isSaving"
+      :show-close="!isSaving"
     >
       <el-form :model="saveForm" label-position="top">
         <el-form-item label="Outfit Name">
           <el-input v-model="saveForm.title" placeholder="e.g. Summer Date Night" />
         </el-form-item>
         
-        <el-form-item label="Style Tags">
-          <el-select 
-            v-model="saveForm.tags" 
-            multiple 
-            filterable 
-            allow-create 
-            default-first-option
-            placeholder="Select or create tags"
-          >
-            <el-option v-for="tag in tagOptions" :key="tag" :label="tag" :value="tag" />
-          </el-select>
-        </el-form-item>
+        <div class="grid-2-col-form">
+          <el-form-item label="Season">
+            <el-select v-model="saveForm.season" placeholder="Select Season">
+              <el-option label="Spring" value="Spring" />
+              <el-option label="Summer" value="Summer" />
+              <el-option label="Autumn" value="Autumn" />
+              <el-option label="Winter" value="Winter" />
+              <el-option label="All Year" value="All Year" />
+            </el-select>
+          </el-form-item>
+          
+          <el-form-item label="Style">
+            <el-select v-model="saveForm.style" placeholder="Select Style" allow-create filterable>
+              <el-option label="Casual" value="Casual" />
+              <el-option label="Formal" value="Formal" />
+              <el-option label="Work" value="Work" />
+              <el-option label="Party" value="Party" />
+            </el-select>
+          </el-form-item>
+        </div>
 
         <el-form-item label="Notes">
-          <el-input v-model="saveForm.note" type="textarea" :rows="3" placeholder="Add styling tips or occasion notes..." />
+          <el-input v-model="saveForm.note" type="textarea" :rows="3" placeholder="Add styling tips..." />
         </el-form-item>
       </el-form>
       
       <template #footer>
         <div class="dialog-footer">
-          <el-button @click="saveDialogVisible = false">Cancel</el-button>
-          <el-button type="primary" color="#6366f1" @click="confirmSave">Save Outfit</el-button>
+          <el-button @click="saveDialogVisible = false" :disabled="isSaving">Cancel</el-button>
+          <el-button type="primary" color="#6366f1" :loading="isSaving" @click="confirmSave">
+            {{ isSaving ? 'Saving...' : 'Save Outfit' }}
+          </el-button>
         </div>
       </template>
     </el-dialog>
@@ -222,17 +218,20 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, nextTick } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Goods, Picture, EditPen, MagicStick, Minus, Plus, FullScreen, Delete, RefreshRight, ArrowUp, ArrowDown } from '@element-plus/icons-vue'
+import { Goods, Picture, EditPen, MagicStick, Minus, Plus, FullScreen, Delete, RefreshRight, ArrowUp, ArrowDown, ArrowLeft } from '@element-plus/icons-vue'
 import request from '../utils/request'
+import html2canvas from 'html2canvas' // 确保已安装
 
-// 处理图片 URL
 const getImageUrl = (url) => {
   if (!url) return ''
-  if (url.startsWith('http')) return url
-  // 本地静态资源，拼上前缀
-  return `http://127.0.0.1:8000${url.startsWith('/') ? '' : '/'}${url}`
+  // 如果已经是网络图片 (http开头) 或 base64 (data:image开头)，直接返回
+  if (url.startsWith('http') || url.startsWith('data:image')) return url
+  
+  // 拼接后端地址，注意处理斜杠
+  const baseUrl = 'http://127.0.0.1:8000'
+  return `${baseUrl}${url.startsWith('/') ? '' : '/'}${url}`
 }
 
 const props = defineProps({
@@ -240,52 +239,54 @@ const props = defineProps({
 })
 const emit = defineEmits(['back', 'save'])
 
-// === State ===
 const activeTab = ref('wardrobe')
-const activeCategory = ref('Top')
+const activeCategory = ref('All')
 const zoom = ref(100)
 const selectedIndex = ref(-1)
+const isSaving = ref(false)
 
-// Canvas Data
 const bgColor = ref('#ffffff')
 const bgImage = ref('')
 const elements = ref([]) 
 
-// 保存弹窗状态
 const saveDialogVisible = ref(false)
 const saveForm = reactive({
   title: '',
-  tags: [],
+  season: 'All Year',
+  style: 'Casual',
   note: ''
 })
-const tagOptions = ['Casual', 'Work', 'Formal', 'Date Night', 'Sporty', 'Chic']
 
-// Dragging State
 let draggedItem = null 
 let isInteracting = false
 let startX = 0, startY = 0
 let initialParams = {} 
 
-// === Assets Data ===
+// Assets
 const tabs = [
   { key: 'wardrobe', label: 'Items', icon: 'Goods' },
   { key: 'background', label: 'Canvas', icon: 'Picture' },
   { key: 'text', label: 'Typography', icon: 'EditPen' },
   { key: 'sticker', label: 'Decor', icon: 'MagicStick' }
 ]
-const wardrobeCats = [
-  { key: 'Top', label: 'Tops' }, 
-  { key: 'Bottom', label: 'Bottoms' }, 
-  { key: 'Shoes', label: 'Shoes' }, 
-  { key: 'Accessory', label: 'Acc' }
-]
 
 const realWardrobe = ref([])
 
+const dynamicWardrobeCats = computed(() => {
+  if (!realWardrobe.value || realWardrobe.value.length === 0) return []
+  const cats = new Set(realWardrobe.value.map(item => item.category))
+  return Array.from(cats).sort()
+})
+
+const filteredItems = computed(() => {
+  if (activeCategory.value === 'All') return realWardrobe.value
+  return realWardrobe.value.filter(i => i.category === activeCategory.value)
+})
+
 const solidColors = ['#ffffff', '#f8fafc', '#fef2f2', '#fffbeb', '#f0fdf4', '#eff6ff', '#f5f3ff']
 const textures = [
-  { name: 'Paper', url: 'https://www.transparenttextures.com/patterns/cream-paper.png' },
-  { name: 'Grid', url: 'https://www.transparenttextures.com/patterns/graphy.png' }
+  { name: 'Paper', url: 'http://127.0.0.1:8000/static/textures/cream-paper.png' },
+  { name: 'Grid', url: 'http://127.0.0.1:8000/static/textures/graphy.png' }
 ]
 const textPresets = [
     { label: 'Title Serif', font: "'Playfair Display', serif" },
@@ -297,8 +298,6 @@ const stickers = [
     { id: 's2', url: 'https://cdn-icons-png.flaticon.com/512/2909/2909241.png' } 
 ]
 
-// === Computed ===
-const filteredItems = computed(() => realWardrobe.value.filter(i => i.category === activeCategory.value))
 const currentEl = computed(() => selectedIndex.value !== -1 ? elements.value[selectedIndex.value] : {})
 
 const artboardStyle = computed(() => ({
@@ -311,6 +310,7 @@ const artboardStyle = computed(() => ({
     transition: 'transform 0.1s linear'
 }))
 
+// Canvas Interaction Logic
 const getLayerStyle = (el) => ({
     top: `${el.y}px`,
     left: `${el.x}px`,
@@ -321,7 +321,6 @@ const getLayerStyle = (el) => ({
     position: 'absolute',
     transformOrigin: 'center center',
 })
-
 const getContentStyle = (el) => ({
     width: '100%',
     height: '100%',
@@ -330,52 +329,32 @@ const getContentStyle = (el) => ({
     fontFamily: el.fontFamily,
     fontSize: `${el.fontSize}px`
 })
-
 const onDragStart = (e, item, type) => {
-    // 默认比例 1:1
     let ratio = 1
-    
-    // 如果是图片类型，尝试从 DOM 获取图片的自然宽高
     if (type === 'image' || type === 'sticker') {
-        // 查找拖拽目标中的 img 标签
         const imgEl = e.target.querySelector('img') || (e.target.tagName === 'IMG' ? e.target : null)
         if (imgEl && imgEl.naturalWidth && imgEl.naturalHeight) {
             ratio = imgEl.naturalHeight / imgEl.naturalWidth
         }
     }
-
     draggedItem = { item, type, ratio }
 }
-
 const onDrop = (e) => {
     e.preventDefault()
     if (!draggedItem) return
-    
     const rect = document.getElementById('artboard').getBoundingClientRect()
     const scale = zoom.value / 100
     const mouseX = (e.clientX - rect.left) / scale
     const mouseY = (e.clientY - rect.top) / scale
-    
     const newId = Date.now()
     const baseZ = elements.value.length + 1
     
     if (draggedItem.type === 'image' || draggedItem.type === 'sticker') {
-        // === 核心修复逻辑 2: 应用宽高比 ===
-        // 设定基准宽度，例如 150px
         const baseWidth = 150
-        // 根据比例计算高度
         const calculatedHeight = baseWidth * draggedItem.ratio
-        
         elements.value.push({
-            id: newId, 
-            itemId: draggedItem.item.item_id,
-            type: 'image', 
-            src: getImageUrl(draggedItem.item.image_url),
-            // 居中放置到鼠标位置
-            x: mouseX - (baseWidth / 2), 
-            y: mouseY - (calculatedHeight / 2), 
-            w: baseWidth, 
-            h: calculatedHeight, 
+            id: newId, itemId: draggedItem.item.item_id, type: 'image', src: getImageUrl(draggedItem.item.image_url),
+            x: mouseX - (baseWidth / 2), y: mouseY - (calculatedHeight / 2), w: baseWidth, h: calculatedHeight, 
             rotate: 0, zIndex: baseZ, opacity: 1
         })
     } else if (draggedItem.type === 'text') {
@@ -385,95 +364,100 @@ const onDrop = (e) => {
             color: '#333', fontSize: 24, fontFamily: draggedItem.item.font
         })
     }
-    
     selectedIndex.value = elements.value.length - 1
     draggedItem = null
 }
-
-// ... (setBackground, startDrag, onMove, startRotate, startResize, stopInteraction, etc. 保持不变) ...
-const setBackground = (type, val) => {
-    if (type === 'color') { bgColor.value = val; bgImage.value = '' } 
-    else { bgImage.value = val }
-}
-const startDrag = (e, index) => {
-    if (e.button !== 0 || e.target.classList.contains('control-knob')) return
-    selectedIndex.value = index; isInteracting = true; startX = e.clientX; startY = e.clientY; initialParams = { ...elements.value[index] }
-    document.addEventListener('mousemove', onMove); document.addEventListener('mouseup', stopInteraction)
-}
-const onMove = (e) => {
-    if (!isInteracting) return
-    const scale = zoom.value / 100
-    elements.value[selectedIndex.value].x = initialParams.x + (e.clientX - startX) / scale
-    elements.value[selectedIndex.value].y = initialParams.y + (e.clientY - startY) / scale
-}
-const startRotate = (e) => {
-    e.stopPropagation()
-    const el = document.getElementById('artboard').getBoundingClientRect()
-    const item = elements.value[selectedIndex.value]
-    const centerX = el.left + (item.x + item.w/2) * (zoom.value/100)
-    const centerY = el.top + (item.y + item.h/2) * (zoom.value/100)
-    initialParams = { startRotate: item.rotate, startAngle: Math.atan2(e.clientY - centerY, e.clientX - centerX) }
-    isInteracting = true
-    const onRotateMove = (ev) => {
-        const deg = Math.atan2(ev.clientY - centerY, ev.clientX - centerX) - initialParams.startAngle
-        elements.value[selectedIndex.value].rotate = initialParams.startRotate + (deg * 180 / Math.PI)
-    }
-    const stopRotate = () => { document.removeEventListener('mousemove', onRotateMove); document.removeEventListener('mouseup', stopRotate); isInteracting = false }
-    document.addEventListener('mousemove', onRotateMove); document.addEventListener('mouseup', stopRotate)
-}
-const startResize = (e) => {
-    e.stopPropagation(); isInteracting = true; startX = e.clientX; initialParams = { w: elements.value[selectedIndex.value].w, h: elements.value[selectedIndex.value].h }
-    const onResizeMove = (ev) => {
-        const scale = zoom.value / 100
-        const newW = Math.max(50, initialParams.w + (ev.clientX - startX) / scale)
-        const item = elements.value[selectedIndex.value]
-        item.w = newW
-        if (item.type !== 'text') item.h = newW * (initialParams.h / initialParams.w)
-    }
-    const stopResize = () => { document.removeEventListener('mousemove', onResizeMove); document.removeEventListener('mouseup', stopResize); isInteracting = false }
-    document.addEventListener('mousemove', onResizeMove); document.addEventListener('mouseup', stopResize)
-}
+const setBackground = (type, val) => { if (type === 'color') { bgColor.value = val; bgImage.value = '' } else { bgImage.value = val } }
+const startDrag = (e, index) => { if (e.button !== 0 || e.target.classList.contains('control-knob')) return; selectedIndex.value = index; isInteracting = true; startX = e.clientX; startY = e.clientY; initialParams = { ...elements.value[index] }; document.addEventListener('mousemove', onMove); document.addEventListener('mouseup', stopInteraction) }
+const onMove = (e) => { if (!isInteracting) return; const scale = zoom.value / 100; elements.value[selectedIndex.value].x = initialParams.x + (e.clientX - startX) / scale; elements.value[selectedIndex.value].y = initialParams.y + (e.clientY - startY) / scale }
+const startRotate = (e) => { e.stopPropagation(); const el = document.getElementById('artboard').getBoundingClientRect(); const item = elements.value[selectedIndex.value]; const centerX = el.left + (item.x + item.w/2) * (zoom.value/100); const centerY = el.top + (item.y + item.h/2) * (zoom.value/100); initialParams = { startRotate: item.rotate, startAngle: Math.atan2(e.clientY - centerY, e.clientX - centerX) }; isInteracting = true; const onRotateMove = (ev) => { const deg = Math.atan2(ev.clientY - centerY, ev.clientX - centerX) - initialParams.startAngle; elements.value[selectedIndex.value].rotate = initialParams.startRotate + (deg * 180 / Math.PI) }; const stopRotate = () => { document.removeEventListener('mousemove', onRotateMove); document.removeEventListener('mouseup', stopRotate); isInteracting = false }; document.addEventListener('mousemove', onRotateMove); document.addEventListener('mouseup', stopRotate) }
+const startResize = (e) => { e.stopPropagation(); isInteracting = true; startX = e.clientX; initialParams = { w: elements.value[selectedIndex.value].w, h: elements.value[selectedIndex.value].h }; const onResizeMove = (ev) => { const scale = zoom.value / 100; const newW = Math.max(50, initialParams.w + (ev.clientX - startX) / scale); const item = elements.value[selectedIndex.value]; item.w = newW; if (item.type !== 'text') item.h = newW * (initialParams.h / initialParams.w) }; const stopResize = () => { document.removeEventListener('mousemove', onResizeMove); document.removeEventListener('mouseup', stopResize); isInteracting = false }; document.addEventListener('mousemove', onResizeMove); document.addEventListener('mouseup', stopResize) }
 const stopInteraction = () => { isInteracting = false; document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', stopInteraction) }
 const deselectAll = () => selectedIndex.value = -1
-const handleKeyDown = (e) => {
-    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable) return
-    if ((e.key === 'Backspace' || e.key === 'Delete') && selectedIndex.value !== -1) deleteLayer()
-}
+const handleKeyDown = (e) => { if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable) return; if ((e.key === 'Backspace' || e.key === 'Delete') && selectedIndex.value !== -1) deleteLayer() }
 const deleteLayer = () => { if (selectedIndex.value !== -1) { elements.value.splice(selectedIndex.value, 1); selectedIndex.value = -1 } }
 const moveLayer = (dir) => { if (selectedIndex.value !== -1) elements.value[selectedIndex.value].zIndex += dir }
 const updateText = (e, index) => { elements.value[index].text = e.target.innerHTML }
-const clearCanvas = () => { elements.value = []; bgColor.value = '#ffffff'; bgImage.value = ''; saveForm.title = ''; saveForm.tags = []; saveForm.note = '' }
+const clearCanvas = () => { elements.value = []; bgColor.value = '#ffffff'; bgImage.value = ''; saveForm.title = ''; saveForm.season = 'All Year'; saveForm.style = 'Casual'; saveForm.note = '' }
 const resetView = () => zoom.value = 100
 
-
-// === 核心修复逻辑 3: 保存流程 ===
 const openSaveDialog = () => {
   saveDialogVisible.value = true
 }
 
-const confirmSave = () => {
+// [核心修复] 保存逻辑：截图 -> 上传 -> 返回URL
+const confirmSave = async () => {
   if (!saveForm.title) {
     ElMessage.warning('Please give your outfit a name!')
     return
   }
+
+  isSaving.value = true
+  deselectAll() // 必须取消选中，否则蓝色边框会被截进去
   
-  // 组装完整数据
-  const layoutData = {
-    title: saveForm.title,
-    tags: saveForm.tags,
-    note: saveForm.note,
-    bg: bgColor.value,
-    bgImage: bgImage.value,
-    elements: JSON.parse(JSON.stringify(elements.value)) // 深拷贝防止引用问题
+  await nextTick() // 等待 DOM 更新，去掉边框后再截图
+
+  try {
+    const artboardEl = document.getElementById('artboard')
+    const canvas = await html2canvas(artboardEl, {
+      useCORS: true,
+      scale: 1,
+      backgroundColor: null // 这里保持 null 即可实现透明
+    })
+
+    canvas.toBlob(async (blob) => {
+      if (!blob) {
+        ElMessage.error('Failed to generate snapshot')
+        isSaving.value = false
+        zoom.value = originalZoom
+        return
+      }
+
+      const formData = new FormData()
+      const filename = `outfit_snap_${Date.now()}.png`
+      formData.append('file', blob, filename)
+
+      try {
+        const res = await request.post('/api/upload/image?type=outfit', formData, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        })
+        
+        // 确保 URL 是完整的或者前端能处理的
+        const uploadedUrl = res.url 
+
+        const layoutData = {
+          // 传递 ID 以便父组件判断是更新
+          outfit_id: props.initialData ? props.initialData.outfit_id : null,
+          title: saveForm.title,
+          season: saveForm.season,
+          style: saveForm.style,
+          note: saveForm.note,
+          bg: bgColor.value,
+          bgImage: bgImage.value,
+          elements: JSON.parse(JSON.stringify(elements.value)), // 深度拷贝所有元素（含文字、贴纸）
+          image_url: uploadedUrl
+        }
+        
+        emit('save', layoutData)
+        saveDialogVisible.value = false
+      } catch (uploadErr) {
+        console.error(uploadErr)
+        ElMessage.error('Snapshot upload failed')
+      } finally {
+        isSaving.value = false
+        zoom.value = originalZoom
+      }
+    }, 'image/png')
+
+  } catch (err) {
+    console.error('Screenshot failed', err)
+    ElMessage.error('Failed to save outfit')
+    isSaving.value = false
+    zoom.value = originalZoom
   }
-  
-  emit('save', layoutData)
-  saveDialogVisible.value = false
 }
 
-// 初始化：如果是编辑已有方案，回填数据
 onMounted(async () => {
-  // 1. 加载左侧单品库
   try {
     const res = await request.get('/api/outfits/items')
     realWardrobe.value = res 
@@ -481,21 +465,17 @@ onMounted(async () => {
     console.error('Failed to load items', error)
   }
 
-  // 2. [新增] 核心修复：如果是编辑模式，回填画布数据
   if (props.initialData) {
-    // 回填表单
     saveForm.title = props.initialData.title || ''
     saveForm.note = props.initialData.note || ''
-    saveForm.tags = props.initialData.tags || [] // 如果后端没存tags，这里可能是空的
+    saveForm.season = props.initialData.season || 'All Year'
+    saveForm.style = props.initialData.style || 'Casual'
     
-    // 回填画布背景
     if (props.initialData.bg) bgColor.value = props.initialData.bg
     if (props.initialData.bgImage) bgImage.value = props.initialData.bgImage
 
-    // [关键] 回填画布上的衣服元素
     if (props.initialData.elements && props.initialData.elements.length > 0) {
       elements.value = props.initialData.elements
-      // 重新计算 selectedIndex 避免报错
       selectedIndex.value = -1 
     }
   }
@@ -503,10 +483,8 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-/* 引入谷歌字体 */
 @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Inter:wght@400;500;600&display=swap');
 
-/* 全局布局变量 */
 .studio-container {
     --primary: #6366f1;
     --surface: #ffffff;
@@ -519,7 +497,6 @@ onMounted(async () => {
     font-family: 'Inter', sans-serif; color: var(--text-main); overflow: hidden; outline: none;
 }
 
-/* Sidebar */
 .studio-sidebar { width: 300px; height: 100%; background: var(--surface); display: flex; flex-direction: column; border-right: 1px solid var(--border); z-index: 20; }
 .sidebar-header { padding: 24px 20px 16px; }
 .header-title { font-size: 18px; font-weight: 700; color: var(--primary); }
@@ -531,17 +508,17 @@ onMounted(async () => {
 .capsule-btn .el-icon { font-size: 20px; margin-bottom: 4px; }
 .assets-scroll-area { flex: 1; overflow-y: auto; padding: 20px; }
 
-/* Assets */
 .category-tags { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
-.cat-tag { padding: 6px 12px; background: #f3f4f6; border-radius: 20px; font-size: 12px; font-weight: 500; cursor: pointer; }
+.cat-tag { padding: 6px 12px; background: #f3f4f6; border-radius: 20px; font-size: 12px; font-weight: 500; cursor: pointer; transition: 0.2s; }
+.cat-tag:hover { background: #e2e8f0; }
 .cat-tag.active { background: var(--text-main); color: white; }
 .grid-2-col { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.grid-2-col-form { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 .grid-3-col { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
 .asset-item { aspect-ratio: 1; background: #fff; border: 1px solid var(--border); border-radius: 12px; display: flex; align-items: center; justify-content: center; cursor: grab; }
 .asset-item:hover { border-color: var(--primary); box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
 .img-holder { width: 90%; height: 90%; display: flex; align-items: center; justify-content: center; }
-.img-holder .el-image { width: 100%; height: 100%; pointer-events: none; } /* 重要：防止图片本身被浏览器默认拖拽干扰 */
-/* 给图片加一个辅助类，用于 dragStart 获取 DOM */
+.img-holder .el-image { width: 100%; height: 100%; pointer-events: none; }
 .draggable-img { width: 100%; height: 100%; object-fit: contain; }
 
 .color-palette { display: flex; flex-wrap: wrap; gap: 12px; }
@@ -550,7 +527,6 @@ onMounted(async () => {
 .text-preset-card { padding: 12px; border: 1px dashed var(--border); text-align: center; margin-bottom: 8px; cursor: grab; background: #fff; }
 .sticker-item img { width: 100%; height: 100%; object-fit: contain; pointer-events: none; }
 
-/* Workspace */
 .studio-workspace { flex: 1; position: relative; display: flex; flex-direction: column; background-image: radial-gradient(#cbd5e1 1px, transparent 1px); background-size: 24px 24px; }
 .toolbar-island { margin: 16px 24px 0; height: 56px; background: rgba(255,255,255,0.9); backdrop-filter: blur(12px); border-radius: 16px; display: flex; align-items: center; justify-content: space-between; padding: 0 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); border: 1px solid rgba(255,255,255,0.6); z-index: 10; }
 .left-group { display: flex; align-items: center; gap: 10px; }
@@ -560,10 +536,9 @@ onMounted(async () => {
 .tools-center { display: flex; align-items: center; gap: 8px; }
 .zoom-val { font-size: 12px; width: 36px; text-align: center; }
 .canvas-viewport { flex: 1; overflow: auto; display: flex; justify-content: center; align-items: center; padding: 40px; }
-.canvas-artboard { background: #fff; box-shadow: 0 20px 50px rgba(0,0,0,0.1); position: relative; user-select: none; }
+.canvas-artboard { background-color: v-bind(bgColor); box-shadow: 0 20px 50px rgba(0,0,0,0.1); position: relative; user-select: none; background-size: cover;}
 .empty-guide { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #cbd5e1; pointer-events: none; }
 
-/* Layers */
 .layer-box { cursor: move; }
 .layer-content img { width: 100%; height: 100%; display: block; pointer-events: none; }
 .text-element { width: 100%; height: 100%; outline: none; }
@@ -573,15 +548,14 @@ onMounted(async () => {
 .rotate { top: -36px; left: 50%; transform: translateX(-50%); }
 .resize-br { bottom: -12px; right: -12px; width: 16px; height: 16px; cursor: nwse-resize; background: var(--primary); border: 2px solid #fff; }
 
-/* Property Panel */
 .property-floater { position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); background: rgba(255,255,255,0.95); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.5); padding: 8px 20px; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.15); display: flex; align-items: center; gap: 16px; z-index: 50; }
 .prop-section { display: flex; align-items: center; }
 .divider { width: 1px; height: 20px; background: #e5e7eb; }
 .label { font-size: 10px; font-weight: 700; color: #9ca3af; text-transform: uppercase; margin-right: 8px; }
 
-/* Dialog Styles */
 .custom-dialog { border-radius: 12px; overflow: hidden; }
 :deep(.el-dialog__header) { padding: 20px 24px; border-bottom: 1px solid #f3f4f6; margin-right: 0; }
 :deep(.el-dialog__title) { font-family: 'Playfair Display', serif; font-weight: 700; }
 :deep(.el-dialog__body) { padding: 24px; }
+.no-items-tip { grid-column: 1 / -1; text-align: center; color: #9ca3af; font-size: 12px; padding: 20px; }
 </style>

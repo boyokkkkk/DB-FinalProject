@@ -48,3 +48,24 @@ npm run dev
 
 后端uvicorn main:app --reload
 前端npm run dev
+
+## cby 12.24
+还是后端先运行reset_db，登录不上看db.ini和database.py里面有没有改用户名和密码！
+如果出现关于权限的报错这里注意需要给用来连接数据库的用户授权。
+omm 授权 ALTER USER cby SYSADMIN;
+
+然后运行在backend目录下运行 python scripts\inject_local.py 注入数据，成功会有提示，注意这个文件中注入数据的用户id，我这里是1。
+
+然后运行前端，这边可以测试功能。
+![alt text](README_images/6.png)
+
+![alt text](README_images/7.png)
+
+![alt text](README_images/8.png)
+
+### ！添加数据
+将图片放在backend/static/uploads/items里面
+注意是png格式！
+然后将信息填写到items文件夹下的items.json文件里面！
+
+添加完后重新运行inject_local.py，看看有没有添加成功。

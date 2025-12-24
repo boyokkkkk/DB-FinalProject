@@ -91,8 +91,11 @@
             <img
               :src="getImageUrl(item.image_url)"
               :alt="item.name"
+              crossorigin="anonymous"
             />
           </div>
+
+          <img :src="getImageUrl(selectedClothing.image_url)" class="detail-image" crossorigin="anonymous" />
           <div class="clothing-info">
             <div class="brand">{{ item.brand }}</div>
             <h4>{{ item.name }}</h4>
@@ -720,12 +723,16 @@ onMounted(() => {
 }
 .clothing-image {
   height: 200px;
-  background: #f8fafc;
+  background-color: #ffffff; /* 确保背景是纯白，而不是透明显示出的底层黑影 */
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 .clothing-image img {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain; /* 改为 contain 确保透明 PNG 不会被拉伸变形 */
+  background: transparent; /* 强制图片本身背景透明 */
 }
 .clothing-info {
   padding: 10px;
@@ -737,6 +744,10 @@ onMounted(() => {
 .clothing-info .brand {
   color: #64748b;
   font-size: 12px;
+}
+
+.el-image {
+  background-color: #fff; /* 确保图片加载前或透明区域是白色的 */
 }
 
 /* 标签样式 */

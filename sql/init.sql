@@ -8,6 +8,9 @@ DROP TABLE IF EXISTS clothing_items CASCADE;
 DROP TABLE IF EXISTS tags CASCADE;
 DROP TABLE IF EXISTS categories CASCADE;
 DROP TABLE IF EXISTS sys_user CASCADE;
+DROP TABLE IF EXISTS wishlist_id CASCADE;
+DROP TABLE IF EXISTS wishlist_items CASCADE;
+DROP TABLE IF EXISTS wishlist_tags CASCADE;
 
 -- ==========================================
 -- 1. 用户表 (sys_user)
@@ -82,6 +85,7 @@ CREATE TABLE outfit (
     season        VARCHAR(50),
     style         VARCHAR(50),
     image_url     VARCHAR(255),
+    meta_data     TEXT,
     create_time   TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -106,7 +110,7 @@ CREATE TABLE outfit_ref (
 -- 创建心愿单表，与 clothing_items 结构类似但独立
 CREATE TABLE wishlist_items (
     wishlist_id SERIAL PRIMARY KEY,
-    user_id INTEGER NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+    user_id INTEGER NOT NULL REFERENCES sys_user(user_id) ON DELETE CASCADE,
     name VARCHAR(100) NOT NULL,
     brand VARCHAR(50),
     color VARCHAR(30),
@@ -142,7 +146,7 @@ $$ LANGUAGE plpgsql;
 CREATE TRIGGER wishlist_updated_at_trigger
 BEFORE UPDATE ON wishlist_items
 FOR EACH ROW
-EXECUTE FUNCTION update_wishlist_updated_at();
+EXECUTE PROCEDURE update_wishlist_updated_at();
 
 -- ==========================================
 -- 6. 索引优化

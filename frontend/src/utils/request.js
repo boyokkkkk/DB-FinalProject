@@ -1,29 +1,18 @@
-// src/utils/request.js
 import axios from 'axios'
+import { ElMessage } from 'element-plus'
 
-// 1. 创建 axios 实例
 const service = axios.create({
-  // 后端接口的基础地址 (FastAPI 默认是 8000)
-  baseURL: 'http://127.0.0.1:8000',
-  timeout: 5000 // 请求超时时间 (5秒)
+  baseURL: 'http://localhost:8000',
+  timeout: 5000
 })
 
-// 2. 请求拦截器 (比如发送请求前如果要带 Token，就在这里处理)
+// 请求拦截器：每次请求自动带上 Token
 service.interceptors.request.use(
   config => {
-    let token = localStorage.getItem('token') 
-    
-    if (!token) {
-        const userInfo = localStorage.getItem('user_info')
-        if (userInfo) {
-            try {
-                token = JSON.parse(userInfo).token
-            } catch (e) {}
-        }
-    }
-
-    // 如果有 token，加到 Header 里
+    // 从 localStorage 获取 token
+    const token = localStorage.getItem('token')
     if (token) {
+      // 按照 OAuth2 标准，Header 格式为 "Bearer <token>"
       config.headers['Authorization'] = `Bearer ${token}`
     }
     return config
@@ -33,16 +22,23 @@ service.interceptors.request.use(
   }
 )
 
-// 3. 响应拦截器 (统一处理报错)
+// 响应拦截器：处理 401 未登录
 service.interceptors.response.use(
   response => {
-    // 如果后端返回 200，直接把数据拿出来
-    return response.data
+    return response
   },
   error => {
-    // 如果报错 (比如 401, 500)，在这里弹窗提示
-    console.error('请求出错:', error)
-    alert('请求失败: ' + (error.response?.data?.detail || error.message))
+    if (error.response && error.response.status === 401) {
+      // Token 过期或未登录
+      ElMessage.error('登录已过期，请重新登录')
+      localStorage.removeItem('token') // 清除失效 token
+      
+      // 强制跳转到登录页 (假设你配置了路由)
+      // 如果没有路由，可以使用 window.location.href = '/login'
+      window.location.href = '/login'
+    } else {
+      ElMessage.error(error.response?.data?.detail || '网络请求错误')
+    }
     return Promise.reject(error)
   }
 )
