@@ -1,0 +1,38 @@
+[
+    {
+      "name": "浅蓝色衬衫",
+      "category": "top",
+      "color": "蓝色",
+      "season": "Autumn",
+      "style": "Casual",
+      "filename": "top2.png", 
+      "price": 199.0
+    },
+    {
+      "name": "蓝色条纹衬衫",
+      "category": "top",
+      "color": "蓝色",
+      "season": "Autumn",
+      "style": "Casual",
+      "filename": "top1.png",
+      "price": 199.0
+    },
+    {
+      "name": "条纹毛衣",
+      "category": "top",
+      "color": "棕色",
+      "season": "Winter",
+      "style": "Casual",
+      "filename": "top3.png",
+      "price": 399.0
+    },
+    {
+      "name": "破洞牛仔裤",
+      "category": "bottom",
+      "color": "灰色",
+      "season": "Autumn",
+      "style": "Casual",
+      "filename": "bottom1.png",
+      "price": 299.0
+    }
+]
