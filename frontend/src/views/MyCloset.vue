@@ -5,13 +5,17 @@
       <h1>My Closet</h1>
       <p class="welcome">Welcome back, get ready for your day.</p>
       <div class="search-container">
-        <input
-          v-model="searchQuery"
-          @input="handleSearch"
-          @keyup.enter="handleSearch"
-          placeholder="Search items by name, brand, color, tags..."
-          class="search-input"
-        />
+        <div class="search-input-wrapper">
+          <input
+            v-model="searchQuery"
+            @input="handleSearchDebounced"
+            @keyup.enter="handleSearchImmediate"
+            placeholder="Search items by name, brand, color, tags..."
+            class="search-input"
+          />
+          <!-- 新增：加载中图标 -->
+          <span v-if="isSearching" class="search-loading">🔄</span>
+        </div>
         <button class="add-btn" @click="openAddModal()">
           + Add Item
         </button>
@@ -24,6 +28,10 @@
       >
         Clear All
       </button>
+      <!-- 新增：搜索反馈提示 -->
+      <div v-if="searchFeedback" class="search-feedback">
+        {{ searchFeedback }}
+      </div>
     </div>
 
     <!-- 筛选器栏（新增occasion） -->
@@ -80,7 +88,12 @@
         <p>{{ filteredResults.length }} item(s) found</p>
       </div>
 
-      <div class="clothes">
+      <!-- 新增：加载中占位 -->
+      <div v-if="isSearching" class="loading-state">
+        Loading items...
+      </div>
+
+      <div v-else class="clothes">
         <div
           v-for="item in filteredResults"
           :key="item.item_id"
@@ -95,7 +108,6 @@
             />
           </div>
 
-          <img :src="getImageUrl(selectedClothing.image_url)" class="detail-image" crossorigin="anonymous" />
           <div class="clothing-info">
             <div class="brand">{{ item.brand }}</div>
             <h4>{{ item.name }}</h4>
@@ -109,9 +121,10 @@
         </div>
       </div>
 
-      <!-- 无结果提示 -->
-      <div v-if="filteredResults.length === 0" class="empty-state">
+      <!-- 无结果提示（优化文案） -->
+      <div v-if="!isSearching && filteredResults.length === 0" class="empty-state">
         {{ searchQuery ? `No items found matching "${searchQuery}"` : "No items match your filters" }}
+        <br/>Try adjusting your search terms or filters.
       </div>
     </div>
 
@@ -273,7 +286,7 @@
               <input v-model="formData.price" type="number" step="0.01" min="0" />
             </div>
             <div class="form-group full-width">
-              <label>Image URL</label>
+              <label>Image</label>
               <input v-model="formData.image_url" placeholder="http://... or /static/..." />
             </div>
             <div class="form-group full-width">
@@ -307,6 +320,11 @@ const searchQuery = ref('')
 const editingClothingId = ref(null)
 const allItems = ref([])
 const searchInitiated = ref(false)
+
+// 新增：搜索状态相关
+const isSearching = ref(false) // 是否正在搜索
+const searchFeedback = ref('') // 搜索反馈提示
+let searchDebounceTimer = null // 防抖计时器
 
 // 筛选器状态（新增filterOccasion）
 const filterCategory = ref('')
@@ -375,14 +393,32 @@ const categoryMap = computed(() => {
   }, {})
 })
 
-// 获取全量物品数据
-const fetchAllItems = async () => {
+// 获取全量物品数据（新增加载状态）
+const fetchAllItems = async (isManualSearch = false) => {
+  if (isManualSearch) {
+    isSearching.value = true
+    searchFeedback.value = 'Searching for items...'
+  }
   try {
     const res = await request.get('/api/closet/items/search')
     allItems.value = res.data || res
+    if (isManualSearch) {
+      searchFeedback.value = `Found ${allItems.value.length} total items`
+      // 3秒后隐藏反馈
+      setTimeout(() => {
+        searchFeedback.value = ''
+      }, 3000)
+    }
   } catch (error) {
     console.error('获取全量物品失败', error)
     allItems.value = []
+    if (isManualSearch) {
+      searchFeedback.value = 'Failed to load items, please try again'
+    }
+  } finally {
+    if (isManualSearch) {
+      isSearching.value = false
+    }
   }
 }
 
@@ -407,14 +443,38 @@ const fetchClothesByCategory = async (categoryId) => {
   }
 }
 
-// 搜索触发
-const handleSearch = () => {
-  searchInitiated.value = true
+// 新增：防抖搜索（输入停止500ms后执行）
+const handleSearchDebounced = () => {
+  clearTimeout(searchDebounceTimer)
+  searchDebounceTimer = setTimeout(() => {
+    handleSearchImmediate()
+  }, 500)
 }
 
-// 筛选器变化触发
+// 新增：立即搜索（回车/防抖后执行）
+const handleSearchImmediate = () => {
+  if (!searchQuery.value.trim() && !filterCategory.value && !filterColor.value && !filterSeason.value && !filterOccasion.value) {
+    searchFeedback.value = ''
+    return
+  }
+  searchInitiated.value = true
+  // 重新请求最新数据（确保和后端同步）
+  fetchAllItems(true)
+}
+
+// 筛选器变化触发（新增加载反馈）
 const handleFilterChange = () => {
   searchInitiated.value = true
+  isSearching.value = true
+  searchFeedback.value = 'Applying filters...'
+  // 筛选是本地操作，立即结束加载
+  setTimeout(() => {
+    isSearching.value = false
+    searchFeedback.value = `Filtered to ${filteredResults.value.length} items`
+    setTimeout(() => {
+      searchFeedback.value = ''
+    }, 2000)
+  }, 300)
 }
 
 // 清空所有筛选/搜索
@@ -426,6 +486,10 @@ const clearAllFilters = () => {
   filterOccasion.value = '' // 新增：清空occasion筛选
   selectedCategory.value = null
   searchInitiated.value = false
+  searchFeedback.value = 'Filters cleared'
+  setTimeout(() => {
+    searchFeedback.value = ''
+  }, 2000)
 }
 
 // 选择分类
@@ -439,6 +503,7 @@ const selectCategory = (cat) => {
   filterOccasion.value = '' // 新增：清空occasion筛选
   searchQuery.value = ''
   searchInitiated.value = false
+  searchFeedback.value = ''
 }
 
 // 保存衣物
@@ -589,13 +654,35 @@ onMounted(() => {
   margin-bottom: 10px;
   flex-wrap: wrap;
 }
-.search-input {
+/* 新增：搜索输入框容器（包含加载图标） */
+.search-input-wrapper {
   flex: 1;
   min-width: 200px;
+  position: relative;
+}
+.search-input {
+  width: 90%;
   padding: 12px 15px;
   border: 1px solid #cbd5e1;
   border-radius: 8px;
   font-size: 14px;
+  padding-right: 40px; /* 给加载图标留空间 */
+}
+/* 新增：加载中图标 */
+.search-loading {
+  position: absolute;
+  right: 15px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 16px;
+  color: #6366f1;
+}
+/* 新增：搜索反馈提示 */
+.search-feedback {
+  font-size: 12px;
+  color: #64748b;
+  margin: 5px 0;
+  font-style: italic;
 }
 .add-btn {
   white-space: nowrap;
@@ -630,16 +717,16 @@ onMounted(() => {
 }
 .filter-row {
   display: flex;
-  gap: 20px;
+  gap: 30px;
   flex-wrap: wrap;
 }
 .filter-group {
   display: flex;
   flex-direction: column;
-  gap: 5px;
-  min-width: 180px;
+  gap: 10px;
+  min-width: 160px;
   flex: 1;
-  max-width: 250px;
+  max-width: 220px;
 }
 .filter-group label {
   font-size: 12px;
@@ -700,6 +787,14 @@ onMounted(() => {
 }
 .breadcrumb p {
   margin: 0;
+  color: #64748b;
+  font-size: 14px;
+}
+
+/* 新增：加载状态样式 */
+.loading-state {
+  text-align: center;
+  padding: 40px;
   color: #64748b;
   font-size: 14px;
 }

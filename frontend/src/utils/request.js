@@ -25,7 +25,7 @@ service.interceptors.request.use(
 // 响应拦截器：处理 401 未登录
 service.interceptors.response.use(
   response => {
-    return response
+    return response.data
   },
   error => {
     if (error.response && error.response.status === 401) {

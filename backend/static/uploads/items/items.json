@@ -34,5 +34,185 @@
       "style": "Casual",
       "filename": "bottom1.png",
       "price": 299.0
+    },
+    {
+      "name": "湖绿格子裙",
+      "category": "dress",
+      "color": "绿色",
+      "season": "Autumn",
+      "style": "Casual",
+      "filename": "dress1.png",
+      "price": 89.0
+    },
+    {
+      "name": "棕绿格子背心裙",
+      "category": "dress",
+      "color": "粽绿色",
+      "season": "Summer",
+      "style": "Casual",
+      "filename": "dress2.png",
+      "price": 70.0
+    },
+    {
+      "name": "白色吊带长裙",
+      "category": "dress",
+      "color": "白色",
+      "season": "Summer",
+      "style": "Casual",
+      "filename": "dress3.png",
+      "price": 60.0
+    },
+    {
+      "name": "红白色套装长裙",
+      "category": "dress",
+      "color": "红色",
+      "season": "Winter",
+      "style": "Casual",
+      "filename": "dress4.png",
+      "price": 70.0
+    },
+    {
+      "name": "黑色斑点长裙",
+      "category": "dress",
+      "color": "白色",
+      "season": "Summer",
+      "style": "Casual",
+      "filename": "dress5.png",
+      "price": 49.0
+    },
+    {
+      "name": "蓝色长袖长裙",
+      "category": "dress",
+      "color": "蓝色",
+      "season": "Spring",
+      "style": "Casual",
+      "filename": "dress6.png",
+      "price": 78.0
+    },
+    {
+      "name": "白色斑点长裙",
+      "category": "dress",
+      "color": "白色",
+      "season": "Summer",
+      "style": "Casual",
+      "filename": "dress7.png",
+      "price": 49.0
+    },
+    {
+      "name": "红色异域风情长裙",
+      "category": "dress",
+      "color": "红色",
+      "season": "Summer",
+      "style": "Casual",
+      "filename": "dress8.png",
+      "price": 108.0
+    },
+    {
+      "name": "粉蓝花色小礼裙",
+      "category": "dress",
+      "color": "粉蓝色",
+      "season": "Summer",
+      "style": "Formal",
+      "filename": "dress9.png",
+      "price": 149.0
+    },
+    {
+      "name": "白色镂空小礼裙",
+      "category": "dress",
+      "color": "白色",
+      "season": "Summer",
+      "style": "Formal",
+      "filename": "dress10.webp",
+      "price": 129.0
+    },
+    {
+      "name": "蝴蝶结黑色外套",
+      "category": "outerwear",
+      "color": "黑色",
+      "season": "Winter",
+      "style": "Causal",
+      "filename": "outerwear1.png",
+      "price": 179.0
+    },
+    {
+      "name": "橘黄色棉服",
+      "category": "outerwear",
+      "color": "橘黄色",
+      "season": "Winter",
+      "style": "Causal",
+      "filename": "outerwear2.png",
+      "price": 320.0
+    },
+    {
+      "name": "白色短款针织外套",
+      "category": "outerwear",
+      "color": "白色",
+      "season": "Winter",
+      "style": "Formal",
+      "filename": "outerwear3.png",
+      "price": 1230.0
+    },
+    {
+      "name": "木耳边薄款外搭",
+      "category": "outerwear",
+      "color": "米白色",
+      "season": "Summer",
+      "style": "Causal",
+      "filename": "outerwear4.png",
+      "price": 35.0
+    },
+    {
+      "name": "米白色针织外套",
+      "category": "outerwear",
+      "color": "米白色",
+      "season": "Autumn",
+      "style": "Causal",
+      "filename": "outerwear5.png",
+      "price": 179.0
+    },
+    {
+      "name": "粉色西装外套",
+      "category": "outerwear",
+      "color": "粉色",
+      "season": "Spring",
+      "style": "Formal",
+      "filename": "outerwear6.png",
+      "price": 210.0
+    },
+    {
+      "name": "黑白格子马甲",
+      "category": "outerwear",
+      "color": "黑白色",
+      "season": "Autumn",
+      "style": "Causal",
+      "filename": "outerwear7.png",
+      "price": 45.0
+    },
+    {
+      "name": "黑色长款针织外套",
+      "category": "outerwear",
+      "color": "黑色",
+      "season": "Winter",
+      "style": "Causal",
+      "filename": "outerwear8.png",
+      "price": 179.0
+    },
+    {
+      "name": "红色圣诞斗篷",
+      "category": "outerwear",
+      "color": "红色",
+      "season": "Winter",
+      "style": "Causal",
+      "filename": "outerwear9.png",
+      "price": 188.0
+    },
+    {
+      "name": "白色小披肩",
+      "category": "outerwear",
+      "color": "白色",
+      "season": "Winter",
+      "style": "Causal",
+      "filename": "outerwear10.png",
+      "price": 68.0
     }
 ]

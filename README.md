@@ -69,3 +69,14 @@ omm 授权 ALTER USER cby SYSADMIN;
 然后将信息填写到items文件夹下的items.json文件里面！
 
 添加完后重新运行inject_local.py，看看有没有添加成功。
+
+## cyx 12.25
+添加了外套和连衣裙各十条数据，适配了中文搜索；
+注意！！！记得改db.ini和database.py中的账号密码！！！
+！！！拉取后步骤！！！
+后端：
+运行reset_db
+运行uvicorn main:app --reload，重新注册新用户
+运行python scripts\inject_local.py 注入数据，不然会自动创建新用户，密码会出错，导致点击其他功能网络错误闪退回登录页面（血泪教训）
+最后重新运行uvicorn main:app --reload
+前端：npm run dev

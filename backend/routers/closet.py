@@ -5,11 +5,27 @@ from typing import List, Optional
 from database import get_db
 import models, schemas
 import security
+import re
 
 router = APIRouter(
     prefix="/api/closet",
     tags=["closet"]
 )
+
+# ========== 新增：中文搜索辅助函数 ==========
+def build_chinese_search_filter(field, keyword):
+    """
+    构建中文模糊搜索过滤条件（兼容中英文，优化匹配效率）
+    :param field: 数据库字段
+    :param keyword: 搜索关键词
+    :return: sqlalchemy 过滤条件
+    """
+    # 去除关键词空格，支持中文分词片段匹配
+    keyword = re.sub(r'\s+', '', keyword).strip()
+    if not keyword:
+        return None
+    # 优化：用 concat 减少 % 前缀（若有索引可走索引扫描），中文用 like 兼容
+    return field.like(f"%{keyword}%")
 
 @router.get("/categories", response_model=List[schemas.Category])
 def get_categories(
@@ -71,41 +87,72 @@ def search_items(
 ):
     """搜索衣物 (仅限当前用户)"""
     try:
-        filters = [models.ClothingItem.user_id == user_id]
+        query_obj = db.query(models.ClothingItem).filter(models.ClothingItem.user_id == user_id)
 
-        if query:
-            query_str = f"%{query}%"
-            filters.append(
-                or_(
-                    models.ClothingItem.name.ilike(query_str),
-                    models.ClothingItem.brand.ilike(query_str),
-                    models.ClothingItem.color.ilike(query_str),
-                    models.ClothingItem.season.ilike(query_str),
-                    models.ClothingItem.style.ilike(query_str),
-                    models.ClothingItem.occasion.ilike(query_str)
-                )
-            )
+        filters = []
+
+        if query and query.strip():
+            search_conditions = []
+            # 名称（核心字段）
+            name_filter = build_chinese_search_filter(models.ClothingItem.name, query)
+            if name_filter:
+                search_conditions.append(name_filter)
+            # 品牌
+            brand_filter = build_chinese_search_filter(models.ClothingItem.brand, query)
+            if brand_filter:
+                search_conditions.append(brand_filter)
+            # 颜色
+            color_filter = build_chinese_search_filter(models.ClothingItem.color, query)
+            if color_filter:
+                search_conditions.append(color_filter)
+            # 季节
+            season_filter = build_chinese_search_filter(models.ClothingItem.season, query)
+            if season_filter:
+                search_conditions.append(season_filter)
+            # 风格
+            style_filter = build_chinese_search_filter(models.ClothingItem.style, query)
+            if style_filter:
+                search_conditions.append(style_filter)
+            # 场景
+            occasion_filter = build_chinese_search_filter(models.ClothingItem.occasion, query)
+            if occasion_filter:
+                search_conditions.append(occasion_filter)
+
+            if search_conditions:
+                filters.append(or_(*search_conditions))
+
+            # 2.2 分类过滤（精准匹配）
         if category_id:
             filters.append(models.ClothingItem.category_id == category_id)
-        if color:
-            filters.append(models.ClothingItem.color.ilike(f"%{color}%"))
-        if season:
-            filters.append(models.ClothingItem.season.ilike(f"%{season}%"))
 
-        # 纯SELECT查询，无多余JOIN
-        items = db.query(models.ClothingItem) \
-            .filter(*filters) \
-            .distinct() \
-            .offset(skip) \
-            .limit(limit) \
-            .all()
+            # 2.3 颜色过滤（中文支持，如：黑色、白色）
+        if color and color.strip():
+            color_filter = build_chinese_search_filter(models.ClothingItem.color, color)
+            if color_filter:
+                filters.append(color_filter)
+
+            # 2.4 季节过滤（中文支持，如：春季、冬季）
+        if season and season.strip():
+            season_filter = build_chinese_search_filter(models.ClothingItem.season, season)
+            if season_filter:
+                filters.append(season_filter)
+
+            # 3. 应用所有过滤条件（优化：避免空filter导致全表扫描）
+        if filters:
+            query_obj = query_obj.filter(*filters)
+
+            # 4. 性能优化：
+            # - distinct() 去重（按需保留，若无重复可删除）
+            # - 先分页再查询，减少数据加载
+        items = query_obj.distinct().offset(skip).limit(limit).all()
 
         return items
 
     except Exception as e:
         # 异常时手动回滚 + 精准报错
         db.rollback()
-        print(f"搜索异常详情: {str(e)}")
+        error_detail = f"搜索失败：{str(e)}，关键词：{query}，用户ID：{user_id}"
+        print(error_detail)
         raise HTTPException(status_code=500, detail=f"搜索失败: {str(e)}")
 
 @router.get("/items/{item_id}", response_model=schemas.ClothingItem)
