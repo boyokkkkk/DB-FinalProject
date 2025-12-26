@@ -27,6 +27,7 @@ const handleLogin = async () => {
     // 1. 把用户信息存到浏览器本地 (LocalStorage)
     // 这样刷新页面后，还能记得你是谁
     localStorage.setItem('user_info', JSON.stringify(res.data))
+    localStorage.setItem('token', res.data.token)
 
     // 2. 跳转到主页 (Dashboard)
     alert('登录成功，欢迎回来！')

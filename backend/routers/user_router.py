@@ -11,6 +11,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from database import get_db
 import models, schemas
+import security
 from fastapi import File, UploadFile
 import os
 import uuid
@@ -32,11 +33,13 @@ def register(user: schemas.UserCreate, db: Session = Depends(get_db)):
     if db_user:
         raise HTTPException(status_code=400, detail="用户名已存在")
 
+    hashed_password = security.get_password_hash(user.password)
+
     # 2. 创建新用户
     # 注意：实际项目中密码必须加密（如使用 bcrypt），这里为了演示先用明文，之后我们可以加加密
     new_user = models.User(
         username=user.username,
-        password=user.password,  # ⚠️ 之后记得改成加密存储
+        password=hashed_password,  # ⚠️ 之后记得改成加密存储
         avatar=""
     )
 
@@ -57,17 +60,20 @@ def login(user: schemas.UserLogin, db: Session = Depends(get_db)):
     db_user = db.query(models.User).filter(models.User.username == user.username).first()
 
     # 2. 校验用户是否存在 & 密码是否正确
-    if not db_user or db_user.password != user.password:
+    if not db_user or not security.verify_password(user.password, db_user.password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="用户名或密码错误",
         )
+
+    access_token = security.create_access_token(data={"sub": str(db_user.user_id)})
 
     # 3. 登录成功 (这里简单返回用户信息，正规做法是返回 Token)
     return {
         "msg": "登录成功",
         "code": 200,
         "data": {
+            "token": access_token,
             "user_id": db_user.user_id,
             "username": db_user.username,
             "avatar": db_user.avatar
