@@ -79,4 +79,8 @@ omm 授权 ALTER USER cby SYSADMIN;
 运行uvicorn main:app --reload，重新注册新用户
 运行python scripts\inject_local.py 注入数据，不然会自动创建新用户，密码会出错，导致点击其他功能网络错误闪退回登录页面（血泪教训）
 最后重新运行uvicorn main:app --reload
+
+## hsh 12.26
+拉了clothes-items的分支，绑了主界面的数据；+2鞋子2其他；细节还没修，但是应该不会影响到其他部分
+
 前端：npm run dev
