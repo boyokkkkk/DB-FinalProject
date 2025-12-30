@@ -4,9 +4,9 @@ __pycache__/
 venv/
 .env
 
-# Images
-backend/static/*
-!backend/static/.gitkeep
+# # Images
+# backend/static/*
+# !backend/static/.gitkeep
 
 # IDE
 .vscode/

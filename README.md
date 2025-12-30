@@ -83,4 +83,7 @@ omm 授权 ALTER USER cby SYSADMIN;
 ## hsh 12.26
 拉了clothes-items的分支，绑了主界面的数据；+2鞋子2其他；细节还没修，但是应该不会影响到其他部分
 
+## cby 12.30
+上传了20条记录还有搭配的素材。
+![alt text](README_images/download.png)
 

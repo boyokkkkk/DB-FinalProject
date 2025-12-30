@@ -270,3 +270,27 @@ def delete_outfit(
     db.delete(outfit)
     db.commit()
     return
+
+@router.get("/assets/{asset_type}")
+def get_assets(asset_type: str):
+    """
+    asset_type 可以是 'textures' 或 'decor'
+    """
+    base_url = "http://localhost:8000/static"
+    folder_path = os.path.join("static", asset_type)
+    
+    if not os.path.exists(folder_path):
+        return []
+        
+    files = os.listdir(folder_path)
+    # 过滤图片文件
+    images = [f for f in files if f.lower().endswith(('.png', '.jpg', '.jpeg'))]
+    
+    # 返回完整的 URL 列表
+    return [
+        {
+            "name": img,
+            "src": f"{base_url}/{asset_type}/{img}"
+        }
+        for img in images
+    ]

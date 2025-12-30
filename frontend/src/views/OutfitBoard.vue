@@ -36,14 +36,15 @@
         </div>
 
         <div v-if="activeTab === 'background'" class="assets-wrapper">
-          <div class="section-label">Solid Colors</div>
-          <div class="color-palette">
-            <div v-for="c in solidColors" :key="c" class="color-dot" :style="{background: c}" @click="setBackground('color', c)"></div>
-          </div>
-          <div class="section-label mt-4">Textures</div>
           <div class="grid-2-col">
-            <div v-for="tex in textures" :key="tex.name" class="asset-item texture-item" :style="{backgroundImage: `url(${tex.url})`}" @click="setBackground('image', tex.url)">
-               <span>{{ tex.name }}</span>
+            <div 
+              v-for="(bg, idx) in textureOptions" 
+              :key="idx"
+              class="asset-item"
+              @click="changeBackground(bg)"
+            >
+              <div v-if="!bg.src" class="color-swatch" :style="{ background: bg.value }"></div>
+              <img v-else :src="bg.src" class="bg-preview" style="width: 100%; height: 100%; object-fit: cover; border-radius: 10px;" />
             </div>
           </div>
         </div>
@@ -56,10 +57,18 @@
 
         <div v-if="activeTab === 'sticker'" class="assets-wrapper">
            <div class="grid-3-col">
-             <div v-for="s in stickers" :key="s.id" class="sticker-item" draggable="true" @dragstart="onDragStart($event, s, 'sticker')">
-                <img :src="s.url" class="draggable-img" crossorigin="anonymous" />
-             </div>
-           </div>
+              <div 
+                v-for="item in decorItems" 
+                :key="item.id"
+                class="asset-item"
+                draggable="true" 
+                @dragstart="onDragStart($event, item, 'sticker')" 
+              >
+                <div class="img-holder">
+                  <img :src="item.image_url" :alt="item.name" crossorigin="anonymous" />
+                </div>
+                </div>
+            </div>
         </div>
       </div>
     </div>
@@ -224,6 +233,38 @@ import { Goods, Picture, EditPen, MagicStick, Minus, Plus, FullScreen, Delete, R
 import request from '../utils/request'
 import html2canvas from 'html2canvas' // 确保已安装
 
+const API_BASE = 'http://localhost:8000';
+
+const textureOptions = ref([
+  { name: 'Pure White', src: '', value: '#ffffff' },
+]);
+
+// 假设有 10 张背景图 (text1.png 到 text10.png)
+// [提示] 请去 backend/static/textures/ 文件夹确认文件名后缀是 .png 还是 .jpg
+const textureCount = 10; 
+
+for (let i = 1; i <= textureCount; i++) {
+  const filename = `text${i}.jpg`; // <--- 如果您的图片是 .jpg，请把这里改为 .jpg
+  textureOptions.value.push({
+    name: `Bg ${i}`,
+    src: `${API_BASE}/static/textures/${filename}`,
+    value: `${API_BASE}/static/textures/${filename}`
+  });
+}
+
+const decorItems = ref([]);
+
+// 有 11 个装饰素材 (decor1.png 到 decor15.png)
+const decorCount = 11;
+
+for (let i = 1; i <= decorCount; i++) {
+  decorItems.value.push({
+    id: `decor_auto_${i}`,
+    name: `Decor ${i}`,
+    image_url: `${API_BASE}/static/decor/decor${i}.png`
+  });
+}
+
 const getImageUrl = (url) => {
   if (!url) return ''
   // 如果已经是网络图片 (http开头) 或 base64 (data:image开头)，直接返回
@@ -300,15 +341,25 @@ const stickers = [
 
 const currentEl = computed(() => selectedIndex.value !== -1 ? elements.value[selectedIndex.value] : {})
 
-const artboardStyle = computed(() => ({
+const artboardStyle = computed(() => {
+  // 判断当前背景是否是纹理（通过判断 URL 是否包含 'textures' 关键字）
+  // 如果是纹理则平铺(auto/repeat)，如果是普通照片则拉伸(cover)
+  const isTexture = bgImage.value && bgImage.value.includes('/textures/')
+  
+  return {
     width: '600px',
     height: '600px',
     backgroundColor: bgColor.value,
     backgroundImage: bgImage.value ? `url(${bgImage.value})` : 'none',
+    // 核心修改：如果是纹理，使用 auto (原大小平铺)；否则使用 cover (拉伸填满)
+    backgroundSize: isTexture ? 'auto' : 'cover', 
+    backgroundRepeat: isTexture ? 'repeat' : 'no-repeat',
+    
     transform: `scale(${zoom.value / 100})`,
     transformOrigin: 'center center',
     transition: 'transform 0.1s linear'
-}))
+  }
+})
 
 // Canvas Interaction Logic
 const getLayerStyle = (el) => ({
@@ -342,6 +393,8 @@ const onDragStart = (e, item, type) => {
 const onDrop = (e) => {
     e.preventDefault()
     if (!draggedItem) return
+    
+    // 1. 获取画布和缩放参数
     const rect = document.getElementById('artboard').getBoundingClientRect()
     const scale = zoom.value / 100
     const mouseX = (e.clientX - rect.left) / scale
@@ -350,12 +403,29 @@ const onDrop = (e) => {
     const baseZ = elements.value.length + 1
     
     if (draggedItem.type === 'image' || draggedItem.type === 'sticker') {
-        const baseWidth = 150
-        const calculatedHeight = baseWidth * draggedItem.ratio
+        // [修改点1] 针对装饰素材设置更小的基准宽度 (40px)
+        // 衣服 (image) 保持 150px，装饰 (sticker) 改为 40px
+        let baseWidth = draggedItem.type === 'sticker' ? 40 : 150
+        
+        // [修改点2] 比例安全保护：如果图片加载失败导致 ratio 不存在或不合法，强制默认为 1
+        const safeRatio = (draggedItem.ratio && isFinite(draggedItem.ratio)) ? draggedItem.ratio : 1
+        
+        // 计算高度
+        const calculatedHeight = baseWidth * safeRatio
+        
         elements.value.push({
-            id: newId, itemId: draggedItem.item.item_id, type: 'image', src: getImageUrl(draggedItem.item.image_url),
-            x: mouseX - (baseWidth / 2), y: mouseY - (calculatedHeight / 2), w: baseWidth, h: calculatedHeight, 
-            rotate: 0, zIndex: baseZ, opacity: 1
+            id: newId, 
+            itemId: draggedItem.item.item_id || null, 
+            type: draggedItem.type,
+            // 如果是 sticker 直接用 image_url，如果是衣服通过 getImageUrl 处理
+            src: draggedItem.type === 'sticker' ? draggedItem.item.image_url : getImageUrl(draggedItem.item.image_url),
+            x: mouseX - (baseWidth / 2), 
+            y: mouseY - (calculatedHeight / 2), 
+            w: baseWidth, 
+            h: calculatedHeight, 
+            rotate: 0, 
+            zIndex: baseZ, 
+            opacity: 1
         })
     } else if (draggedItem.type === 'text') {
         elements.value.push({
@@ -364,10 +434,30 @@ const onDrop = (e) => {
             color: '#333', fontSize: 24, fontFamily: draggedItem.item.font
         })
     }
+    
+    // 选中新添加的元素
     selectedIndex.value = elements.value.length - 1
     draggedItem = null
 }
-const setBackground = (type, val) => { if (type === 'color') { bgColor.value = val; bgImage.value = '' } else { bgImage.value = val } }
+
+const setBackground = (type, val) => { 
+  if (type === 'color') { 
+    bgColor.value = val; 
+    bgImage.value = '' 
+  } else { 
+    bgImage.value = val 
+  } 
+}
+
+const changeBackground = (bg) => {
+  // 如果 src 为空，说明是纯色背景
+  if (!bg.src) {
+    setBackground('color', bg.value)
+  } else {
+    // 否则是图片背景
+    setBackground('image', bg.value)
+  }
+}
 const startDrag = (e, index) => { if (e.button !== 0 || e.target.classList.contains('control-knob')) return; selectedIndex.value = index; isInteracting = true; startX = e.clientX; startY = e.clientY; initialParams = { ...elements.value[index] }; document.addEventListener('mousemove', onMove); document.addEventListener('mouseup', stopInteraction) }
 const onMove = (e) => { if (!isInteracting) return; const scale = zoom.value / 100; elements.value[selectedIndex.value].x = initialParams.x + (e.clientX - startX) / scale; elements.value[selectedIndex.value].y = initialParams.y + (e.clientY - startY) / scale }
 const startRotate = (e) => { e.stopPropagation(); const el = document.getElementById('artboard').getBoundingClientRect(); const item = elements.value[selectedIndex.value]; const centerX = el.left + (item.x + item.w/2) * (zoom.value/100); const centerY = el.top + (item.y + item.h/2) * (zoom.value/100); initialParams = { startRotate: item.rotate, startAngle: Math.atan2(e.clientY - centerY, e.clientX - centerX) }; isInteracting = true; const onRotateMove = (ev) => { const deg = Math.atan2(ev.clientY - centerY, ev.clientX - centerX) - initialParams.startAngle; elements.value[selectedIndex.value].rotate = initialParams.startRotate + (deg * 180 / Math.PI) }; const stopRotate = () => { document.removeEventListener('mousemove', onRotateMove); document.removeEventListener('mouseup', stopRotate); isInteracting = false }; document.addEventListener('mousemove', onRotateMove); document.addEventListener('mouseup', stopRotate) }
@@ -558,4 +648,25 @@ onMounted(async () => {
 :deep(.el-dialog__title) { font-family: 'Playfair Display', serif; font-weight: 700; }
 :deep(.el-dialog__body) { padding: 24px; }
 .no-items-tip { grid-column: 1 / -1; text-align: center; color: #9ca3af; font-size: 12px; padding: 20px; }
+.bg-preview {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 8px;
+  display: block;
+}
+
+/* 2. 限制装饰素材预览图的大小 */
+/* 注意：这里针对的是非 el-image 的普通 img 标签 */
+.asset-item .img-holder img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+
+/* 3. 确保容器本身不溢出 */
+.asset-item {
+  overflow: hidden; /* 防止图片撑出圆角 */
+}
 </style>
