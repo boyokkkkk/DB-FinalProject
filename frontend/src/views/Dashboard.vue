@@ -1,106 +1,139 @@
 <script setup>
 import { ref, onMounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
-import * as echarts from 'echarts' // 引入图表库
+import * as echarts from 'echarts'
+import request from '../utils/request' // 引入封装好的请求工具
 
 const router = useRouter()
 const username = ref('User')
+const chartRef = ref(null)
+let myChart = null
 
 // ==========================================
-// 1. 模拟数据 (MOCK DATA)
-// 以后连接数据库时，只需要把这些 ref 的值替换成 API 返回的数据即可
+// 1. 数据状态 (Reactive Data)
 // ==========================================
 
-// 核心统计数据
+// 核心统计数据 (默认值为 0，图标和颜色保持不变)
 const stats = ref([
-  { title: '单品总数', value: 128, icon: '🧥', bg: '#ECECFE', color: '#6B69F6' },
-  { title: '搭配方案', value: 45, icon: '✨', bg: '#FFF7E6', color: '#FFC069' },
-  { title: '心愿清单', value: 12, icon: '🎁', bg: '#FFEFF0', color: '#FF4D4F' },
-  { title: '总花费', value: '¥ 8,500', icon: '💰', bg: '#E6FFFB', color: '#5CDBD3' },
+  { title: '单品总数', value: 0, icon: '🧥', bg: '#ECECFE', color: '#6B69F6' },
+  { title: '搭配方案', value: 0, icon: '✨', bg: '#FFF7E6', color: '#FFC069' },
+  { title: '心愿清单', value: 0, icon: '🎁', bg: '#FFEFF0', color: '#FF4D4F' },
+  { title: '总花费', value: '¥ 0', icon: '💰', bg: '#E6FFFB', color: '#5CDBD3' },
 ])
 
 // 饼图数据 (分类占比)
-const categoryData = [
-  { value: 48, name: '上装 Tops' },
-  { value: 35, name: '下装 Bottoms' },
-  { value: 24, name: '鞋履 Shoes' },
-  { value: 12, name: '配饰 Acc' },
-  { value: 9,  name: '外套 Outer' }
-]
+const categoryData = ref([])
 
-// 最近添加的单品 (图片先用颜色块代替，你可以换成真实URL)
-const recentItems = ref([
-  { id: 1, name: '白色棉质衬衫', date: '2小时前', tag: '上装', color: '#F0F0F0' },
-  { id: 2, name: '复古牛仔裤', date: '5小时前', tag: '下装', color: '#E3E8F0' },
-  { id: 3, name: '黑色切尔西靴', date: '1天前', tag: '鞋履', color: '#333333' },
-  { id: 4, name: '羊毛围巾', date: '2天前', tag: '配饰', color: '#D4C4B7' },
-])
+// 最近添加的单品
+const recentItems = ref([])
 
 // ==========================================
-// 2. 逻辑处理
+// 2. 辅助函数
+// ==========================================
+
+// 将后端时间转为 "xxx前" 的格式
+const timeAgo = (dateString) => {
+  if (!dateString) return ''
+  const date = new Date(dateString)
+  const now = new Date()
+  const seconds = Math.floor((now - date) / 1000)
+
+  if (seconds < 60) return '刚刚'
+  const minutes = Math.floor(seconds / 60)
+  if (minutes < 60) return `${minutes}分钟前`
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return `${hours}小时前`
+  const days = Math.floor(hours / 24)
+  if (days < 30) return `${days}天前`
+  return dateString.split('T')[0] // 超过30天显示日期
+}
+
+// 颜色映射 (给最近单品的占位图一点颜色)
+const getCategoryColor = (catName) => {
+  const map = {
+    '上装': '#E3E8F0', '下装': '#F0F0F0', '外套': '#D4C4B7',
+    '鞋子': '#333333', '连衣裙': '#FFEFF0', '配饰': '#FFC069'
+  }
+  return map[catName] || '#ECECFE'
+}
+
+// ==========================================
+// 3. 核心逻辑 & 图表
 // ==========================================
 
 // 初始化图表
-const chartRef = ref(null)
-
 const initChart = () => {
-  const myChart = echarts.init(chartRef.value)
+  if (myChart) myChart.dispose() // 防止重复初始化
+  myChart = echarts.init(chartRef.value)
 
   const option = {
-    tooltip: {
-      trigger: 'item'
-    },
+    tooltip: { trigger: 'item' },
     legend: {
-      bottom: '0',        // 放在底部
-      left: 'center',     // 居中
-      icon: 'circle',     // 圆形图标
-      itemGap: 10,        // 图例之间的间距
-      textStyle: {
-        fontSize: 12,
-        color: '#666'
-      }
+      bottom: '0', left: 'center', icon: 'circle', itemGap: 10,
+      textStyle: { fontSize: 12, color: '#666' }
     },
-    color: ['#6B69F6', '#9492F8', '#BDBBFB', '#E2E1FD', '#F0F0F5'],
+    color: ['#6B69F6', '#9492F8', '#BDBBFB', '#E2E1FD', '#F0F0F5', '#FF9F7F'],
     series: [
       {
         name: '衣橱分布',
         type: 'pie',
-        // 🟢 修改点 1：半径稍微改小一点，留出呼吸感
         radius: ['35%', '55%'],
-        // 🟢 修改点 2：把圆心向上移动 (X轴 50%, Y轴 40%)，默认为 50%
         center: ['50%', '40%'],
-
         avoidLabelOverlap: false,
-        itemStyle: {
-          borderRadius: 10,
-          borderColor: '#fff',
-          borderWidth: 2
-        },
-        label: {
-          show: false,
-          position: 'center'
-        },
+        itemStyle: { borderRadius: 10, borderColor: '#fff', borderWidth: 2 },
+        label: { show: false, position: 'center' },
         emphasis: {
-          label: {
-            show: true,
-            fontSize: 18,
-            fontWeight: 'bold',
-            color: '#333'
-          }
+          label: { show: true, fontSize: 16, fontWeight: 'bold', color: '#333' }
         },
-        data: categoryData
+        // 如果没有数据，显示一个灰色的空圆环
+        data: categoryData.value.length ? categoryData.value : [{value: 1, name: '暂无数据', itemStyle: {color: '#eee'}}]
       }
     ]
   }
-
   myChart.setOption(option)
-
-  window.addEventListener('resize', () => {
-    myChart.resize()
-  })
+  window.addEventListener('resize', () => myChart.resize())
 }
 
-// 获取用户信息 & 初始化
+// 加载所有数据
+const fetchAllData = async () => {
+  try {
+    // 1. 请求衣橱统计 (总数、总价、分类、最近单品)
+    const dashRes = await request.get('/api/closet/dashboard/stats')
+    // 2. 请求搭配列表 (为了算个数)
+    const outfitRes = await request.get('/api/outfits/')
+    // 3. 请求心愿单统计
+    const wishRes = await request.get('/api/wishlist/stats')
+
+    // --- 更新 Stats 卡片 ---
+    stats.value[0].value = dashRes.total_count
+    stats.value[1].value = outfitRes.length
+    stats.value[2].value = wishRes.total_items
+    // 格式化金额，保留0位小数并加千分位
+    stats.value[3].value = `¥ ${dashRes.total_price.toLocaleString('en-US', {maximumFractionDigits: 0})}`
+
+    // --- 更新分类图表 ---
+    categoryData.value = dashRes.category_data
+    initChart() // 数据拿到后重绘图表
+
+    // --- 更新最近列表 ---
+    // 这里需要处理一下数据格式以适配模板
+    recentItems.value = dashRes.recent_items.map(item => ({
+      id: item.item_id,
+      name: item.name,
+      date: timeAgo(item.created_at),
+      // 注意：这里需要后端返回 category 名字，但我们的 recent_items 查询没连表
+      // 简单处理：如果后端没返回 category 名字，就标为 '单品'
+      // *更完美的做法是后端 recent_items 应该做 join 查询，但为了简单，这里先这样*
+      tag: '新购入',
+      color: getCategoryColor(item.color) // 尝试用颜色名字匹配背景色
+    }))
+
+  } catch (error) {
+    console.error("加载仪表盘数据失败:", error)
+  }
+}
+
+// 生命周期
 onMounted(() => {
   // 读取用户名
   const stored = localStorage.getItem('user_info')
@@ -108,9 +141,11 @@ onMounted(() => {
     username.value = JSON.parse(stored).username
   }
 
-  // 渲染图表
+  // 初始化空图表
   nextTick(() => {
     initChart()
+    // 开始拉取真实数据
+    fetchAllData()
   })
 })
 
@@ -119,7 +154,6 @@ const go = (path) => {
   router.push(path)
 }
 </script>
-
 <template>
   <div class="dashboard-container">
     <div class="welcome-section">

@@ -1,8 +1,6 @@
-# 这个文件的作用是前端发数据过来时，后端先检查一遍格式对不对
-
-from pydantic import BaseModel
-from typing import Optional
-from datetime import datetime
+from pydantic import BaseModel, Field, validator
+from typing import Optional, List
+from datetime import datetime, date
 
 # 注册登录
 # 1. 基础模型：大家都有的字段
@@ -28,3 +26,224 @@ class UserUpdate(BaseModel):
     username: Optional[str] = None
     password: Optional[str] = None
     avatar: Optional[str] = None
+
+# ==================================================
+# Outfit
+# ==================================================
+
+class OutfitItemCreate(BaseModel):
+    item_id: int
+    position_x: float = 0.0
+    position_y: float = 0.0
+    rotation: float = 0.0
+    scale_x: float = 1.0
+    scale_y: float = 1.0
+    z_index: int = 0
+
+class OutfitCreate(BaseModel):
+    name: str = Field(..., min_length=1, max_length=100)
+    description: Optional[str] = None
+    season: Optional[str] = None
+    style: Optional[str] = None
+    image_url: Optional[str] = None # canvas image
+    meta_data: Optional[str] = None
+    items: List[OutfitItemCreate] # items list
+
+class OutfitItemDetailOut(BaseModel):
+    item_id: int
+    name: str
+    category: str
+    image_url: Optional[str] = None
+    
+    # Canvas info
+    position_x: float
+    position_y: float
+    rotation: float
+    scale_x: float
+    scale_y: float
+    z_index: int
+
+    class Config:
+        from_attributes = True
+
+class OutfitDetailOut(BaseModel):
+    outfit_id: int
+    name: str
+    description: Optional[str] = None
+    season: Optional[str] = None
+    style: Optional[str] = None
+    image_url: Optional[str] = None
+    create_time: datetime
+    meta_data: Optional[str] = None
+    items: List[OutfitItemDetailOut] # items info&pos
+
+    class Config:
+        from_attributes = True
+
+class OutfitUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    season: Optional[str] = None
+    style: Optional[str] = None
+    image_url: Optional[str] = None
+    meta_data: Optional[str] = None
+    items: Optional[List[OutfitItemCreate]] = None
+    
+class OutfitOut(BaseModel):
+    outfit_id: int
+    name: str
+    season: Optional[str] = None
+    style: Optional[str] = None
+    image_url: Optional[str] = None
+    create_time: datetime
+    # 可以添加一个字段表示包含多少件单品
+    item_count: int
+
+    class Config:
+        from_attributes = True
+
+class TagBase(BaseModel):
+    tag_name: str
+    tag_type: str
+
+class TagCreate(TagBase):
+    pass
+
+class Tag(TagBase):
+    tag_id: int
+    
+    class Config:
+        orm_mode = True
+
+class CategoryBase(BaseModel):
+    category_name: str
+    category_type: str
+
+class CategoryCreate(CategoryBase):
+    pass
+
+class Category(CategoryBase):
+    category_id: int
+    item_count: Optional[int] = 0
+    
+    class Config:
+        orm_mode = True
+
+
+# 拆分：前端提交用的基础模型（无 user_id）
+class ClothingItemCreateBase(BaseModel):
+    name: str
+    brand: Optional[str] = None
+    color: Optional[str] = None
+    season: Optional[str] = None
+    occasion: Optional[str] = None
+    style: Optional[str] = None
+    material: Optional[str] = None
+    purchase_date: Optional[date] = None
+    price: Optional[float] = None
+    image_url: Optional[str] = None
+    notes: Optional[str] = None
+    category_id: int
+
+    @validator('purchase_date', pre=True)
+    def empty_str_to_none(cls, v):
+        if v == '' or v == 'null' or v == 'undefined':
+            return None
+        return v
+
+
+# 前端提交的创建模型（仅继承无 user_id 的基类）
+class ClothingItemCreate(ClothingItemCreateBase):
+    tag_ids: Optional[List[int]] = []
+
+
+# 数据库/返回前端的基础模型（包含 user_id）
+class ClothingItemBase(ClothingItemCreateBase):
+    user_id: int  # 仅在返回/数据库模型中包含 user_id
+
+
+# 最终返回给前端的衣物模型
+class ClothingItem(ClothingItemBase):
+    item_id: int
+    created_at: datetime
+    category: Optional[Category] = None
+    tags: List[Tag] = []
+
+    class Config:
+        orm_mode = True
+
+class CategoryWithClothes(Category):
+    clothes: List[ClothingItem] = []
+
+
+class WishlistItemBase(BaseModel):
+    name: str
+    brand: Optional[str] = None
+    color: Optional[str] = None
+    season: Optional[str] = None
+    occasion: Optional[str] = None
+    style: Optional[str] = None
+    material: Optional[str] = None
+    category_id: Optional[int] = None
+    price: Optional[float] = None
+    image_url: Optional[str] = None
+    notes: Optional[str] = None
+    tag_ids: Optional[List[int]] = []
+
+    class Config:
+        from_attributes = True
+
+
+class WishlistItemCreate(WishlistItemBase):
+    pass
+
+
+class WishlistItemUpdate(BaseModel):
+    name: Optional[str] = None
+    brand: Optional[str] = None
+    color: Optional[str] = None
+    season: Optional[str] = None
+    occasion: Optional[str] = None
+    style: Optional[str] = None
+    material: Optional[str] = None
+    category_id: Optional[int] = None
+    price: Optional[float] = None
+    image_url: Optional[str] = None
+    notes: Optional[str] = None
+    tag_ids: Optional[List[int]] = None
+    added_to_closet: Optional[bool] = None
+
+
+class WishlistItem(WishlistItemBase):
+    wishlist_id: int
+    user_id: int
+    added_to_closet: bool
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class WishlistItemWithTags(WishlistItem):
+    tags: List[Tag] = []
+    category: Optional[Category] = None
+
+
+class SimilarClothingItem(BaseModel):
+    item_id: int
+    name: str
+    brand: Optional[str] = None
+    color: Optional[str] = None
+    season: Optional[str] = None
+    occasion: Optional[str] = None
+    style: Optional[str] = None
+    category: Optional[str] = None  # 新增：分类名称
+    image_url: Optional[str] = None  # 新增：图片URL
+    price: Optional[float] = None  # 新增：价格
+    similarity_score: float
+    match_fields: List[str]
+    match_details: Optional[dict] = None  # 新增：详细匹配信息
+
+    class Config:
+        from_attributes = True

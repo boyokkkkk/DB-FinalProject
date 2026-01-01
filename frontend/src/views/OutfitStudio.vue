@@ -1,8 +1,349 @@
 <template>
-  <div class="page-content">
-    <h1>OutfitStudio / 搭配</h1>
-    <p>这里是数据显示区域</p>
+  <div class="manager-container">
+    
+    <transition name="fade-slide" mode="out-in">
+      
+      <OutfitStudio 
+        v-if="isEditing" 
+        :initial-data="currentEditData"
+        @back="closeStudio"
+        @save="handleSaveLook"
+      />
+      
+      <div v-else class="gallery-view">
+        <div class="gallery-header">
+          <div class="header-bg-decor"></div>
+          <div class="header-main">
+            <div class="title-section">
+              <h1>Digital Wardrobe</h1>
+              <p>Create, organize, and visualize your daily style.</p>
+            </div>
+            
+            <div class="search-toolbar">
+               <el-input 
+                  v-model="searchQuery" 
+                  placeholder="Search outfits..." 
+                  prefix-icon="Search"
+                  size="large"
+                  class="search-input"
+                  clearable
+               />
+               <div class="actions">
+                 <el-button type="primary" size="large" icon="Plus" round color="#6366f1" class="create-btn" @click="openStudio(null)">
+                   New Look
+                 </el-button>
+               </div>
+            </div>
+
+            <div class="filter-tabs">
+              <span 
+                v-for="tab in filters" 
+                :key="tab" 
+                class="tab-item" 
+                :class="{ active: activeFilter === tab }" 
+                @click="activeFilter = tab"
+              >
+                {{ tab }}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div class="gallery-scroll-area custom-scrollbar">
+          <div class="gallery-grid">
+            
+            <div class="look-card create-card" @click="openStudio(null)">
+              <div class="dashed-content">
+                <div class="icon-circle"><el-icon :size="24"><Plus /></el-icon></div>
+                <span>Create New</span>
+              </div>
+            </div>
+
+            <div 
+              v-for="look in filteredLooks" 
+              :key="look.outfit_id" 
+              class="look-card"
+              @click="editOutfit(look.outfit_id)" 
+            >
+              <div class="card-cover" 
+                   :style="{ 
+                       backgroundImage: look.image_url ? `url(${getImageUrl(look.image_url)})` : 'none',
+                       backgroundSize: 'cover',
+                       backgroundPosition: 'center',
+                       backgroundColor: '#f8fafc'
+                   }">
+                 <div class="preview-emoji" v-if="!look.image_url">
+                    <span v-if="look.season === 'Winter'">❄️</span>
+                    <span v-else-if="look.season === 'Summer'">☀️</span>
+                    <span v-else-if="look.season === 'Autumn'">🍂</span>
+                    <span v-else-if="look.season === 'Spring'">🌱</span>
+                    <span v-else>✨</span>
+                 </div>
+                 
+                 <div class="hover-overlay">
+                   <div class="overlay-text">Click to Edit</div>
+                   <el-button circle icon="Delete" type="danger" plain @click.stop="deleteLook(look.outfit_id)" />
+                 </div>
+              </div>
+              
+              <div class="card-info">
+                <div class="info-top">
+                  <span class="look-title">{{ look.name }}</span>
+                </div>
+                
+                <div class="tags-row">
+                  <el-tag v-if="look.season" size="small" effect="plain" type="warning" round>{{ look.season }}</el-tag>
+                  <el-tag v-if="look.style" size="small" effect="plain" type="info" round>{{ look.style }}</el-tag>
+                </div>
+                
+                <div class="info-footer">
+                  <span class="desc-text">{{ look.item_count }} items</span>
+                  <span class="date-text">{{ formatDate(look.create_time) }}</span>
+                </div>
+              </div>
+            </div>
+
+          </div>
+          
+          <div v-if="filteredLooks.length === 0" class="empty-state">
+             <el-empty description="No outfits found" />
+          </div>
+        </div>
+      </div>
+    </transition>
   </div>
 </template>
+
 <script setup>
+import { ref, computed, onMounted } from 'vue'
+import { Plus, Search, Delete } from '@element-plus/icons-vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import OutfitStudio from './OutfitBoard.vue'
+import request from '../utils/request'
+
+const isEditing = ref(false)
+const searchQuery = ref('')
+const activeFilter = ref('All')
+const currentEditData = ref(null)
+
+const filters = ['All', 'Spring', 'Summer', 'Autumn', 'Winter', 'Casual', 'Formal', 'Work', 'Party']
+
+const lookList = ref([])
+
+const getImageUrl = (url) => {
+    if (!url) return ''
+    if (url.startsWith('http')) return url
+    return `http://127.0.0.1:8000${url}`
+}
+
+const filteredLooks = computed(() => {
+  let result = lookList.value
+  
+  if (activeFilter.value !== 'All') {
+     result = result.filter(l => 
+        l.season === activeFilter.value || l.style === activeFilter.value
+     )
+  }
+
+  if (searchQuery.value) {
+    const q = searchQuery.value.toLowerCase()
+    result = result.filter(l => l.name.toLowerCase().includes(q))
+  }
+  
+  return result
+})
+
+const fetchOutfits = async () => {
+  try {
+    const res = await request.get('/api/outfits/')
+    lookList.value = res 
+  } catch (error) {
+    console.error('获取搭配列表失败', error)
+  }
+}
+
+const openStudio = (data) => {
+  currentEditData.value = data
+  isEditing.value = true
+}
+
+const editOutfit = async (outfitId) => {
+  try {
+    const res = await request.get(`/api/outfits/${outfitId}`)
+    
+    let canvasElements = []
+    let bgSettings = { bg: '#ffffff', bgImage: '' }
+
+    if (res.meta_data) {
+        try {
+            const meta = typeof res.meta_data === 'string' ? JSON.parse(res.meta_data) : res.meta_data
+            canvasElements = meta.elements || []
+            bgSettings.bg = meta.bg || '#ffffff'
+            bgSettings.bgImage = meta.bgImage || ''
+        } catch (e) {
+            console.error("解析元数据失败", e)
+        }
+    } 
+    
+    // 如果 meta_data 解析失败或为空（旧数据），退化为使用 items 列表还原
+    if (canvasElements.length === 0 && res.items && res.items.length > 0) {
+        canvasElements = res.items.map(item => ({
+          id: Date.now() + Math.random(), 
+          itemId: item.item_id,           
+          type: 'image',                  
+          src: getImageUrl(item.image_url),
+          x: item.position_x,
+          y: item.position_y,
+          w: item.scale_x, 
+          h: item.scale_y, 
+          rotate: item.rotation,
+          zIndex: item.z_index,
+          opacity: 1
+        }))
+    }
+
+    const editData = {
+      outfit_id: res.outfit_id,
+      title: res.name,
+      note: res.description,
+      season: res.season,
+      style: res.style,
+      bg: bgSettings.bg, 
+      bgImage: bgSettings.bgImage,
+      elements: canvasElements,
+      image_url: res.image_url
+    }
+
+    openStudio(editData)
+
+  } catch (error) {
+    console.error('无法加载搭配详情', error)
+    ElMessage.error('加载详情失败')
+  }
+}
+
+const closeStudio = () => {
+  isEditing.value = false
+  currentEditData.value = null
+  fetchOutfits()
+}
+
+// [修复] 接收 data.image_url 并传给后端
+const handleSaveLook = async (data) => {
+  const outfitItems = data.elements
+    .filter(el => el.type === 'image' && el.itemId)
+    .map(el => ({
+      item_id: el.itemId,
+      position_x: el.x,
+      position_y: el.y,
+      rotation: el.rotate,
+      scale_x: el.w, 
+      scale_y: el.h,
+      z_index: el.zIndex
+    }))
+
+  if (outfitItems.length === 0) {
+    ElMessage.warning('画布为空，无法保存')
+    return
+  }
+
+  const metaDataObj = {
+      elements: data.elements,
+      bg: data.bg,
+      bgImage: data.bgImage
+  }
+
+  const payload = {
+    name: data.title,
+    description: data.note,
+    season: data.season, 
+    style: data.style,   
+    image_url: data.image_url || '',
+    meta_data: JSON.stringify(metaDataObj),
+    items: outfitItems
+  }
+
+  try {
+    // 3. [逻辑修改] 判断是新建还是更新
+    if (data.outfit_id) {
+        // 更新 (PUT)
+        await request.put(`/api/outfits/${data.outfit_id}`, payload)
+        ElMessage.success('搭配已更新！')
+    } else {
+        // 新建 (POST)
+        await request.post('/api/outfits/', payload)
+        ElMessage.success('搭配已创建！')
+    }
+    
+    isEditing.value = false
+    fetchOutfits() 
+  } catch (error) {
+    console.error(error)
+    ElMessage.error('保存失败')
+  }
+}
+
+const deleteLook = (id) => {
+  ElMessageBox.confirm('确定删除?', '提示', { type: 'warning' })
+  .then(async () => {
+    try {
+      await request.delete(`/api/outfits/${id}`)
+      ElMessage.success('已删除')
+      fetchOutfits()
+    } catch (e) {}
+  })
+}
+
+const formatDate = (dateStr) => {
+  if (!dateStr) return ''
+  return new Date(dateStr).toLocaleDateString()
+}
+
+onMounted(() => {
+  fetchOutfits()
+})
 </script>
+
+<style scoped>
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Inter:wght@400;500;600&display=swap');
+
+.manager-container { width: 100%; height: 100%; background-color: #f1f5f9; display: flex; flex-direction: column; overflow: hidden; font-family: 'Inter', sans-serif; }
+.gallery-view { flex: 1; display: flex; flex-direction: column; height: 100%; }
+.gallery-header { background: #fff; border-bottom: 1px solid #e2e8f0; flex-shrink: 0; }
+.header-bg-decor { height: 6px; background: linear-gradient(90deg, #6366f1 0%, #a855f7 100%); }
+.header-main { padding: 32px 40px 0; max-width: 1200px; margin: 0 auto; width: 100%; box-sizing: border-box; }
+.title-section h1 { font-family: 'Playfair Display', serif; font-size: 32px; color: #1e293b; margin: 0 0 8px 0; }
+.title-section p { color: #64748b; margin: 0 0 24px 0; font-size: 15px; }
+.search-toolbar { display: flex; gap: 16px; margin-bottom: 32px; }
+.search-input { flex: 1; max-width: 500px; }
+.filter-tabs { display: flex; gap: 32px; border-bottom: 1px solid transparent; overflow-x: auto; }
+.tab-item { padding-bottom: 16px; font-size: 14px; color: #64748b; cursor: pointer; position: relative; font-weight: 500; transition: color 0.2s; white-space: nowrap; }
+.tab-item:hover { color: #334155; }
+.tab-item.active { color: #6366f1; font-weight: 600; }
+.tab-item.active::after { content: ''; position: absolute; bottom: -1px; left: 0; width: 100%; height: 3px; background: #6366f1; border-top-left-radius: 3px; border-top-right-radius: 3px; }
+.gallery-scroll-area { flex: 1; overflow-y: auto; padding: 32px 40px; }
+.gallery-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 32px; max-width: 1200px; margin: 0 auto; padding-bottom: 60px; }
+.look-card { background: #fff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); cursor: pointer; transition: 0.3s; border: 1px solid transparent; }
+.look-card:hover { transform: translateY(-5px); box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); border-color: #e2e8f0; }
+.create-card { background: rgba(255,255,255,0.5); border: 2px dashed #cbd5e1; box-shadow: none; min-height: 280px; display: flex; }
+.create-card:hover { border-color: #6366f1; background: #eef2ff; transform: translateY(-4px); }
+.dashed-content { width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; color: #64748b; font-weight: 600; }
+.icon-circle { width: 48px; height: 48px; border-radius: 50%; background: #e2e8f0; display: flex; align-items: center; justify-content: center; color: #fff; transition: 0.3s; }
+.create-card:hover .icon-circle { background: #6366f1; transform: scale(1.1); }
+.card-cover { height: 180px; display: flex; align-items: center; justify-content: center; position: relative; font-size: 48px; }
+.preview-emoji { opacity: 0.8; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.1)); }
+.hover-overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.3); backdrop-filter: blur(2px); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; opacity: 0; transition: 0.3s; }
+.look-card:hover .hover-overlay { opacity: 1; }
+.overlay-text { color: white; font-weight: 600; font-size: 14px; margin-bottom: 8px; }
+.card-info { padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+.info-top { display: flex; justify-content: space-between; align-items: center; }
+.look-title { font-weight: 700; color: #1e293b; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tags-row { display: flex; gap: 6px; flex-wrap: wrap; }
+.info-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 4px; padding-top: 12px; border-top: 1px solid #f1f5f9; }
+.desc-text { font-size: 12px; color: #64748b; font-weight: 500; }
+.date-text { font-size: 11px; color: #94a3b8; }
+.custom-scrollbar::-webkit-scrollbar { width: 8px; }
+.custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+.custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; border: 2px solid #f1f5f9; }
+.empty-state { padding: 60px 0; }
+</style>
