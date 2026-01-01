@@ -297,7 +297,7 @@ def get_dashboard_stats(
     # 3. 最近添加的 4 件单品
     recent_items = db.query(models.ClothingItem) \
         .filter(models.ClothingItem.user_id == user_id) \
-        .order_by(models.ClothingItem.created_at.desc()) \
+        .order_by(models.ClothingItem.purchase_date.desc()) \
         .limit(4).all()
 
     return {

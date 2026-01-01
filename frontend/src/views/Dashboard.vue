@@ -9,11 +9,16 @@ const username = ref('User')
 const chartRef = ref(null)
 let myChart = null
 
-// ==========================================
-// 1. 数据状态 (Reactive Data)
-// ==========================================
 
-// 核心统计数据 (默认值为 0，图标和颜色保持不变)
+const getImageUrl = (url) => {
+  if (!url) return '/placeholder.png' // 无图片时显示占位图
+  if (url.startsWith('http')) return url // 网络图片直接返回
+  // 拼接后端服务器地址
+  return `http://127.0.0.1:8000${url}`
+}
+
+
+
 const stats = ref([
   { title: '单品总数', value: 0, icon: '🧥', bg: '#ECECFE', color: '#6B69F6' },
   { title: '搭配方案', value: 0, icon: '✨', bg: '#FFF7E6', color: '#FFC069' },
@@ -120,12 +125,10 @@ const fetchAllData = async () => {
     recentItems.value = dashRes.recent_items.map(item => ({
       id: item.item_id,
       name: item.name,
-      date: timeAgo(item.created_at),
-      // 注意：这里需要后端返回 category 名字，但我们的 recent_items 查询没连表
-      // 简单处理：如果后端没返回 category 名字，就标为 '单品'
-      // *更完美的做法是后端 recent_items 应该做 join 查询，但为了简单，这里先这样*
+      image_url: item.image_url,
+      date: timeAgo(item.purchase_date || item.created_at), // 建议优先使用购买时间
       tag: '新购入',
-      color: getCategoryColor(item.color) // 尝试用颜色名字匹配背景色
+      color: getCategoryColor(item.color)
     }))
 
   } catch (error) {
@@ -195,7 +198,14 @@ const go = (path) => {
 
         <div class="recent-list">
           <div v-for="item in recentItems" :key="item.id" class="list-item">
-            <div class="item-img-placeholder" :style="{ background: item.color }"></div>
+            <div class="item-image">
+              <img
+                :src="getImageUrl(item.image_url)"
+                :alt="item.name"
+                class="thumbnail"
+              />
+            </div>
+
             <div class="item-info">
               <h4>{{ item.name }}</h4>
               <span class="item-date">{{ item.date }} · {{ item.tag }}</span>
@@ -456,5 +466,19 @@ const go = (path) => {
   .main-content-grid {
     grid-template-columns: 1fr; /* 屏幕窄时变单列 */
   }
+}
+.item-image {
+  width: 60px;
+  height: 60px;
+  border-radius: 8px;
+  overflow: hidden;
+  background-color: #f1f5f9;
+  margin-right: 12px;
+}
+
+.thumbnail {
+  width: 100%;
+  height: 100%;
+  object-fit: cover; /* 保证图片不会变形 */
 }
 </style>

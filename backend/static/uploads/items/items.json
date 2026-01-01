@@ -260,15 +260,8 @@
     "filename": "dress9.png",
     "price": 149.0
   },
-  {
-    "name": "白色镂空小礼裙",
-    "category": "dress",
-    "color": "白色",
-    "season": "Summer",
-    "style": "Formal",
-    "filename": "dress10.webp",
-    "price": 129.0
-  },
+
+
   {
     "name": "蝴蝶结黑色外套",
     "category": "outerwear",
@@ -388,6 +381,70 @@
     "purchase_date": "2024-10-25"
   },
   {
+    "name": "浅柔金色高跟鞋",
+    "category": "shoes",
+    "color": "金色",
+    "season": "All",
+    "style": "Formal",
+    "filename": "shoes3.png",
+    "price": 100.0
+  },
+  {
+    "name": "太妃糖色绒面革踝靴",
+    "category": "shoes",
+    "color": "太妃糖色",
+    "season": "Winter",
+    "style": "Casual",
+    "filename": "shoes4.png",
+    "price": 150.0
+  },
+  {
+    "name": "褐灰色皮革休闲鞋",
+    "category": "shoes",
+    "color": "褐灰色",
+    "season": "All",
+    "style": "Casual",
+    "filename": "shoes5.png",
+    "price": 80.0
+  },
+  {
+    "name": "珍珠饰黑色皮革平底凉鞋",
+    "category": "shoes",
+    "color": "黑色",
+    "season": "All",
+    "style": "Casual",
+    "filename": "shoes6.png",
+    "price": 50.0
+  },
+  {
+    "name": "绿色细闪粉面料休闲鞋",
+    "category": "shoes",
+    "color": "绿色",
+    "season": "All",
+    "style": "Casual",
+    "filename": "shoes7.png",
+    "price": 80.0
+  },
+  {
+    "name": "水晶带饰银色金属感皮革运动便鞋",
+    "category": "shoes",
+    "color": "银色",
+    "season": "All",
+    "style": "Casual",
+    "filename": "shoes8.png",
+    "price": 115.0
+  },
+  {
+    "name": "白色纹理质感针织运动鞋",
+    "category": "shoes",
+    "color": "白色",
+    "season": "All",
+    "style": "Casual",
+    "filename": "shoes9.png",
+    "price": 180.0
+  },
+
+  {
     "name": "四叶草项链",
     "category": "other",
     "color": "白金色",
@@ -395,7 +452,7 @@
     "style": "Formal",
     "filename": "other1.png",
     "price": 100.0,
-    "occasion": "晚宴/约会",
+    "occasion": "晚宴",
     "purchase_date": "2024-12-25"
   },
   {
@@ -406,7 +463,206 @@
     "style": "Formal",
     "filename": "other2.png",
     "price": 21.0,
-    "occasion": "晚宴/重要场合",
+    "occasion": "重要场合",
     "purchase_date": "2025-01-25"
+  },
+  {
+    "name": "珍珠母贝表盘腕表",
+    "category": "other",
+    "color": "金色",
+    "season": "All",
+    "style": "Casual",
+    "filename": "other3.png",
+    "price": 250.0
+  },
+  {
+    "name": "箭头白金吊坠",
+    "category": "other",
+    "color": "白色",
+    "season": "All",
+    "style": "Casual",
+    "filename": "other4.png",
+    "price": 50.0
+  },
+  {
+    "name": "玫瑰金圆形耳环",
+    "category": "other",
+    "color": "玫瑰金色",
+    "season": "All",
+    "style": "Formal",
+    "filename": "other5.png",
+    "price": 150.0
+  },
+  {
+    "name": "玫瑰金爱巢系列耳环",
+    "category": "other",
+    "color": "玫瑰金色",
+    "season": "All",
+    "style": "Formal",
+    "filename": "other6.png",
+    "price": 50.0
+  },
+  {
+    "name": "白色羽毛耳环",
+    "category": "other",
+    "color": "白色",
+    "season": "All",
+    "style": "Casual",
+    "filename": "other7.png",
+    "price": 60.0
+  },
+  {
+    "name": "金色爱巢系列手绳",
+    "category": "other",
+    "color": "金色",
+    "season": "All",
+    "style": "Casual",
+    "filename": "other8.png",
+    "price": 70.0
+  },
+  {
+    "name": "金色孔雀石手链",
+    "category": "other",
+    "color": "绿色",
+    "season": "All",
+    "style": "Formal",
+    "filename": "other9.png",
+    "price": 80.0
+  },
+  {
+    "name": "银色花束胸针",
+    "category": "other",
+    "color": "银色",
+    "season": "All",
+    "style": "Casual",
+    "filename": "other10.png",
+    "price": 90.0
+  },
+  {
+    "name": "黑色皮革帽",
+    "category": "other",
+    "color": "黑色",
+    "season": "All",
+    "style": "Casual",
+    "filename": "other11.png",
+    "price": 25.0
+  },
+  {
+    "name": "镂空巴拿马草帽",
+    "category": "other",
+    "color": "自然色",
+    "season": "All",
+    "style": "Casual",
+    "filename": "other12.png",
+    "price": 55.0
+  },
+  {
+    "name": "羊皮革手套",
+    "category": "other",
+    "color": "淡棕色",
+    "season": "All",
+    "style": "Casual",
+    "filename": "other13.png",
+    "price": 80.0
+  },
+  {
+    "name": "羊皮革手套",
+    "category": "other",
+    "color": "淡棕色",
+    "season": "All",
+    "style": "Casual",
+    "filename": "other13.png",
+    "price": 80.0
+  },
+  {
+    "name": "矩形醋酸纤维太阳眼镜",
+    "category": "other",
+    "color": "黑色",
+    "season": "All",
+    "style": "Casual",
+    "filename": "other14.png",
+    "price": 90.0
+  },
+  {
+    "name": "黑色树脂发箍",
+    "category": "other",
+    "color": "黑色",
+    "season": "All",
+    "style": "Casual",
+    "filename": "other15.png",
+    "price": 20.0
+  },
+  {
+    "name": "白色运动腰包",
+    "category": "other",
+    "color": "白色",
+    "season": "All",
+    "style": "Casual",
+    "filename": "other16.png",
+    "price": 135.0
+  },
+  {
+    "name": "粉棕运动棒球帽",
+    "category": "other",
+    "color": "粉色",
+    "season": "All",
+    "style": "Casual",
+    "filename": "other17.png",
+    "price": 99.0
+  },
+  {
+    "name": "保暖毛绒猫耳帽护耳帽",
+    "category": "other",
+    "color": "红色",
+    "season": "Winter",
+    "style": "Casual",
+    "filename": "other18.png",
+    "price": 69.0
+  },
+  {
+    "name": "撞色格纹绒面流苏运动围巾",
+    "category": "other",
+    "color": "黄色",
+    "season": "Winter",
+    "style": "Casual",
+    "filename": "other19.png",
+    "price": 79.0
+  },
+  {
+    "name": "蛇纹印花毛绒运动挎包",
+    "category": "other",
+    "color": "黄色",
+    "season": "All",
+    "style": "Casual",
+    "filename": "other20.png",
+    "price": 99.0
+  },
+  {
+    "name": "黑色运动斜挎包",
+    "category": "other",
+    "color": "黑色",
+    "season": "All",
+    "style": "Casual",
+    "filename": "other21.png",
+    "price": 89.0
+  },
+  {
+    "name": "白色运动遮阳空顶帽",
+    "category": "other",
+    "color": "白色",
+    "season": "All",
+    "style": "Casual",
+    "filename": "other22.png",
+    "price": 69.0
+  },
+  {
+    "name": "户外运动滑雪五指手套",
+    "category": "other",
+    "color": "黑色",
+    "season": "All",
+    "style": "Casual",
+    "filename": "other23.png",
+    "price": 169.0
   }
+
 ]

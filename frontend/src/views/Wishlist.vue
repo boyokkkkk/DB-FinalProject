@@ -298,19 +298,24 @@
               <label>Material</label>
               <input v-model="formData.material" placeholder="e.g. Cotton, Polyester" />
             </div>
-            <div class="form-group">
-              <label>Price ($)</label>
+            <label>Price ($)</label>
               <input v-model="formData.price" type="number" step="0.01" min="0" />
             </div>
+
+            <div class="form-group full-width">
+              <label>Upload Local Image</label>
+              <input type="file" @change="handleLocalUpload" accept="image/*" />
+            </div>
+
             <div class="form-group full-width">
               <label>Image URL</label>
               <input v-model="formData.image_url" placeholder="http://... or /static/..." />
             </div>
+
             <div class="form-group full-width">
               <label>Notes</label>
               <textarea v-model="formData.notes" rows="3" placeholder="Add any notes..."></textarea>
             </div>
-          </div>
 
           <div class="form-actions">
             <button type="button" @click="closeAddModal">Cancel</button>
@@ -517,7 +522,28 @@ const editItem = (item) => {
   showDetailModal.value = false
   showAddModal.value = true
 }
+const handleLocalUpload = async (event) => {
+  const file = event.target.files[0]
+  if (!file) return
 
+  const uploadData = new FormData()
+  uploadData.append('file', file)
+
+  try {
+    const res = await request.post('/api/upload/image', uploadData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    })
+
+    // 假设后端返回格式为 { url: '/static/uploads/xxx.png' }
+    if (res.url) {
+      formData.image_url = res.url
+      alert('Image uploaded successfully!')
+    }
+  } catch (error) {
+    console.error('Upload failed:', error)
+    alert('Failed to upload local image')
+  }
+}
 const saveItem = async () => {
   try {
     const payload = { ...formData }

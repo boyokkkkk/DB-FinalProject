@@ -231,12 +231,14 @@
     <div v-if="showAddModal" class="modal-overlay" @click="closeAddModal">
       <div class="add-modal" @click.stop>
         <h2>{{ editingClothingId ? 'Edit Item' : 'Add New Item' }}</h2>
+
         <form @submit.prevent="saveClothing">
           <div class="form-grid">
             <div class="form-group">
               <label>Name *</label>
               <input v-model="formData.name" required />
             </div>
+
             <div class="form-group">
               <label>Category *</label>
               <select v-model="formData.category_id" required>
@@ -246,10 +248,12 @@
                 </option>
               </select>
             </div>
+
             <div class="form-group">
               <label>Brand</label>
               <input v-model="formData.brand" placeholder="e.g. Nike, Zara" />
             </div>
+
             <div class="form-group">
               <label>Color</label>
               <input v-model="formData.color" placeholder="e.g. Blue, Black" />
@@ -286,8 +290,8 @@
               <input v-model="formData.price" type="number" step="0.01" min="0" />
             </div>
             <div class="form-group full-width">
-              <label>Image</label>
-              <input v-model="formData.image_url" placeholder="http://... or /static/..." />
+              <label>Upload Local Image</label>
+              <input type="file" @change="handleLocalUpload" accept="image/*" />
             </div>
             <div class="form-group full-width">
               <label>Notes</label>
@@ -331,6 +335,35 @@ const filterCategory = ref('')
 const filterColor = ref('')
 const filterSeason = ref('')
 const filterOccasion = ref('') // 新增：场合筛选
+
+
+const handleLocalUpload = async (event) => {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  // 创建 FormData 对象
+  const uploadData = new FormData();
+  uploadData.append('file', file);
+
+  try {
+    // 调用后端上传接口 (假设路径是 /api/upload/image)
+    // 这里的 request 是你项目中封装好的 axios 实例
+    const res = await request.post('/api/upload/image', uploadData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+
+    // 假设后端返回格式为 { url: '/static/uploads/xxx.png' }
+    if (res.url) {
+      formData.image_url = res.url;
+      alert('Image uploaded successfully!');
+    }
+  } catch (error) {
+    console.error('Upload failed:', error);
+    alert('Failed to upload local image');
+  }
+};
+
+
 
 // 筛选结果计算（新增occasion筛选逻辑）
 const filteredResults = computed(() => {
