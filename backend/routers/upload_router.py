@@ -24,7 +24,7 @@ async def upload_image(file: UploadFile = File(...), type: str = "item"):
         if ext not in [".jpg", ".jpeg", ".png", ".gif", ".webp"]:
             ext = ".jpg"
 
-        # 2. 根据类型决定子目录
+        # 根据类型决定子目录
         if type == "outfit":
             subdir = "outfits"
         else:
@@ -36,15 +36,15 @@ async def upload_image(file: UploadFile = File(...), type: str = "item"):
         if not os.path.exists(target_dir):
             os.makedirs(target_dir)
 
-        # 3. 生成唯一文件名
+        # 生成唯一文件名
         unique_filename = f"{uuid.uuid4().hex}{ext}"
         file_path = os.path.join(target_dir, unique_filename)
 
-        # 4. 保存文件
+        # 保存文件
         with open(file_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
 
-        # 5. 返回 URL (注意路径包含子目录)
+        # 返回 URL (注意路径包含子目录)
         return {"url": f"/static/uploads/{subdir}/{unique_filename}"}
 
     except Exception as e:

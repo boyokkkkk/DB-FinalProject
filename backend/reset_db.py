@@ -1,8 +1,3 @@
-# backend/reset_db.py
-# 运行后就根据 sql/init.sql 来重置数据库
-
-
-
 import os
 from sqlalchemy import text
 from database import engine

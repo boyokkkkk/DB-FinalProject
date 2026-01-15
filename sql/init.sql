@@ -1,5 +1,5 @@
 -- ==========================================
--- 0. 清理旧表 (注意顺序，先删依赖表)
+-- 0. 清理旧表
 -- ==========================================
 DROP TABLE IF EXISTS outfit_ref CASCADE;
 DROP TABLE IF EXISTS outfit CASCADE;

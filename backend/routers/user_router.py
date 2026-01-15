@@ -18,32 +18,31 @@ import uuid
 import shutil
 # 创建路由
 router = APIRouter(
-    prefix="/api/user",  # 统一前缀，前端访问就是 /api/user/login
+    prefix="/api/user",
     tags=["User"]
 )
 
 
 # =======================
-# 1. 注册接口
+# 注册接口
 # =======================
 @router.post("/register", response_model=schemas.UserOut)
 def register(user: schemas.UserCreate, db: Session = Depends(get_db)):
-    # 1. 检查用户名是否已存在
+    # 检查用户名是否已存在
     db_user = db.query(models.User).filter(models.User.username == user.username).first()
     if db_user:
         raise HTTPException(status_code=400, detail="用户名已存在")
 
     hashed_password = security.get_password_hash(user.password)
 
-    # 2. 创建新用户
-    # 注意：实际项目中密码必须加密（如使用 bcrypt），这里为了演示先用明文，之后我们可以加加密
+    # 创建新用户
     new_user = models.User(
         username=user.username,
-        password=hashed_password,  # ⚠️ 之后记得改成加密存储
+        password=hashed_password, 
         avatar=""
     )
 
-    # 3. 存入数据库
+    # 存入数据库
     db.add(new_user)
     db.commit()
     db.refresh(new_user)  # 刷新以获取自动生成的 user_id
@@ -52,7 +51,7 @@ def register(user: schemas.UserCreate, db: Session = Depends(get_db)):
 
 
 # =======================
-# 2. 登录接口
+# 登录接口
 # =======================
 @router.post("/login")
 def login(user: schemas.UserLogin, db: Session = Depends(get_db)):
@@ -81,7 +80,6 @@ def login(user: schemas.UserLogin, db: Session = Depends(get_db)):
     }
 
 
-# [新增] 更新用户信息接口
 @router.put("/{user_id}", response_model=schemas.UserOut)
 def update_user(user_id: int, user_update: schemas.UserUpdate, db: Session = Depends(get_db)):
     # 1. 查找用户
@@ -111,7 +109,7 @@ def update_user(user_id: int, user_update: schemas.UserUpdate, db: Session = Dep
 
 
 # =======================
-# 4. [新增] 上传头像接口
+# 上传头像接口
 # =======================
 @router.post("/{user_id}/avatar")
 async def upload_avatar(user_id: int, file: UploadFile = File(...), db: Session = Depends(get_db)):
@@ -140,9 +138,6 @@ async def upload_avatar(user_id: int, file: UploadFile = File(...), db: Session 
         shutil.copyfileobj(file.file, buffer)
 
     # 5. 生成访问 URL
-    # 注意：在数据库里我们要存 Web 路径，不是硬盘路径
-    # FastAPI 挂载 static 的路径是 /static，所以 URL 是 /static/avatars/xxxx.jpg
-    # 使用 replace 把 Windows 的反斜杠 \ 换成 URL 的正斜杠 /
     avatar_url = f"/static/avatars/{new_filename}"
 
     # 6. 更新数据库

@@ -14,12 +14,12 @@ from routers import wishlist
 import models
 from routers import closet
 
-# ===================== 1. 配置日志（打印详细错误） =====================
+# ===================== 1. 配置日志 =====================
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     handlers=[
-        logging.StreamHandler()  # 输出到控制台
+        logging.StreamHandler()
     ]
 )
 logger = logging.getLogger("DB-FinalProject")

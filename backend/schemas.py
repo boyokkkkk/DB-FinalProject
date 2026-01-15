@@ -13,14 +13,12 @@ class UserCreate(UserBase):
 class UserLogin(UserBase):
     password: str
 # 4. 返回给前端的用户信息 (后端 -> 前端)
-# 注意：千万不能把 password 返回给前端！
 class UserOut(UserBase):
     user_id: int
     avatar: Optional[str] = None
     create_time: datetime
     class Config:
-        from_attributes = True # 允许从 SQLAlchemy 模型读取数据
-
+        from_attributes = True
 # 更新用户信息时的校验模型
 class UserUpdate(BaseModel):
     username: Optional[str] = None
@@ -45,9 +43,9 @@ class OutfitCreate(BaseModel):
     description: Optional[str] = None
     season: Optional[str] = None
     style: Optional[str] = None
-    image_url: Optional[str] = None # canvas image
+    image_url: Optional[str] = None
     meta_data: Optional[str] = None
-    items: List[OutfitItemCreate] # items list
+    items: List[OutfitItemCreate]
 
 class OutfitItemDetailOut(BaseModel):
     item_id: int
@@ -55,7 +53,6 @@ class OutfitItemDetailOut(BaseModel):
     category: str
     image_url: Optional[str] = None
     
-    # Canvas info
     position_x: float
     position_y: float
     rotation: float
@@ -75,7 +72,7 @@ class OutfitDetailOut(BaseModel):
     image_url: Optional[str] = None
     create_time: datetime
     meta_data: Optional[str] = None
-    items: List[OutfitItemDetailOut] # items info&pos
+    items: List[OutfitItemDetailOut]
 
     class Config:
         from_attributes = True
@@ -96,7 +93,6 @@ class OutfitOut(BaseModel):
     style: Optional[str] = None
     image_url: Optional[str] = None
     create_time: datetime
-    # 可以添加一个字段表示包含多少件单品
     item_count: int
 
     class Config:
@@ -130,7 +126,6 @@ class Category(CategoryBase):
         orm_mode = True
 
 
-# 拆分：前端提交用的基础模型（无 user_id）
 class ClothingItemCreateBase(BaseModel):
     name: str
     brand: Optional[str] = None
@@ -238,12 +233,12 @@ class SimilarClothingItem(BaseModel):
     season: Optional[str] = None
     occasion: Optional[str] = None
     style: Optional[str] = None
-    category: Optional[str] = None  # 新增：分类名称
-    image_url: Optional[str] = None  # 新增：图片URL
-    price: Optional[float] = None  # 新增：价格
+    category: Optional[str] = None 
+    image_url: Optional[str] = None  
+    price: Optional[float] = None  
     similarity_score: float
     match_fields: List[str]
-    match_details: Optional[dict] = None  # 新增：详细匹配信息
+    match_details: Optional[dict] = None  
 
     class Config:
         from_attributes = True

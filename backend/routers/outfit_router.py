@@ -15,9 +15,9 @@ router = APIRouter(
 )
 
 # ==========================================
-# 1. 获取用户的单品列表 (OutfitStudio 左侧)
+# 获取用户的单品列表 (OutfitStudio 左侧)
 # ==========================================
-@router.get("/items") # 这里的 response_model 稍微复杂，因为我们需要 category 信息来做前端分类
+@router.get("/items")
 def get_user_items(
     db: Session = Depends(get_db),
     user_id: int = Depends(security.get_current_user_id)
@@ -51,7 +51,7 @@ def get_user_items(
     return result
 
 # ==========================================
-# 2. 创建/保存一个搭配
+# 创建/保存一个搭配
 # ==========================================
 @router.post("/", status_code=status.HTTP_201_CREATED)
 def create_outfit(
@@ -104,8 +104,6 @@ def delete_local_file(image_url: str):
     # 只处理本地 static 目录下的文件
     if image_url.startswith("/static/"):
         try:
-            # 去掉开头的 /，拼接成相对路径 (假设运行目录在项目根目录)
-            # 例如: /static/uploads/outfits/abc.jpg -> static/uploads/outfits/abc.jpg
             file_path = image_url.lstrip("/")
             
             if os.path.exists(file_path):
@@ -121,7 +119,7 @@ def update_outfit(
     db: Session = Depends(get_db),
     user_id: int = Depends(security.get_current_user_id)
 ):
-    # 1. 查找现有搭配
+    # 查找现有搭配
     outfit = db.query(models.Outfit).filter(models.Outfit.outfit_id == outfit_id, models.Outfit.user_id == user_id).first()
     if not outfit:
         raise HTTPException(status_code=404, detail="Outfit not found")
@@ -131,14 +129,14 @@ def update_outfit(
             delete_local_file(outfit.image_url)
         outfit.image_url = outfit_update.image_url
 
-    # 2. 更新基础字段
+    # 更新基础字段
     if outfit_update.name is not None: outfit.name = outfit_update.name
     if outfit_update.description is not None: outfit.description = outfit_update.description
     if outfit_update.season is not None: outfit.season = outfit_update.season
     if outfit_update.style is not None: outfit.style = outfit_update.style
     if outfit_update.meta_data is not None: outfit.meta_data = outfit_update.meta_data
 
-    # 3. 更新关联 Items (先删后加策略，最简单)
+    # 更新关联 Items (先删后加策略，最简单)
     if outfit_update.items is not None:
         # 删除旧引用
         db.query(models.OutfitRef).filter(models.OutfitRef.outfit_id == outfit_id).delete()
@@ -164,7 +162,7 @@ def update_outfit(
     return {"message": "Updated successfully", "outfit_id": outfit.outfit_id}
 
 # ==========================================
-# 3. 获取用户所有搭配列表
+# 获取用户所有搭配列表
 # ==========================================
 @router.get("/", response_model=List[schemas.OutfitOut])
 def list_outfits(
@@ -199,7 +197,7 @@ def list_outfits(
     return outfit_list
 
 # ==========================================
-# 4. 获取搭配详情
+# 获取搭配详情
 # ==========================================
 @router.get("/{outfit_id}", response_model=schemas.OutfitDetailOut)
 def get_outfit_detail(
@@ -216,7 +214,6 @@ def get_outfit_detail(
     if not outfit:
         raise HTTPException(status_code=404, detail="找不到该搭配")
 
-    # [修改] 使用 ClothingItem
     outfit_items_query = (
         db.query(models.ClothingItem, models.OutfitRef)
         .join(models.OutfitRef, models.OutfitRef.item_id == models.ClothingItem.item_id)
@@ -227,7 +224,6 @@ def get_outfit_detail(
     
     items_list = []
     for item, ref in outfit_items_query:
-        # [修改] 安全地获取分类名称
         cat_name = item.category.category_name if item.category else "Uncategorized"
         
         item_detail = schemas.OutfitItemDetailOut(

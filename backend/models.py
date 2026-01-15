@@ -65,7 +65,7 @@ class ClothingItem(Base):
     category = relationship("Category", back_populates="clothes")
     tags = relationship("Tag", secondary=clothing_tags, back_populates="clothes")
     
-    # [新增] 反向关联搭配引用，以便级联删除
+    # 反向关联搭配引用，以便级联删除
     outfit_references = relationship("OutfitRef", back_populates="item", cascade="all, delete-orphan")
 
 class Tag(Base):
@@ -99,7 +99,6 @@ class OutfitRef(Base):
     
     # 联合主键
     outfit_id = Column(Integer, ForeignKey("outfit.outfit_id"), primary_key=True)
-    # [修改] 这里必须指向 clothing_items.item_id
     item_id = Column(Integer, ForeignKey("clothing_items.item_id"), primary_key=True)
     
     position_x = Column(Float, nullable=False, default=0.0)
@@ -110,7 +109,6 @@ class OutfitRef(Base):
     z_index = Column(Integer, nullable=False, default=0)
 
     outfit = relationship("Outfit", back_populates="items")
-    # [修改] 关联到 ClothingItem
     item = relationship("ClothingItem", back_populates="outfit_references")
 
 

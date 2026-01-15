@@ -12,7 +12,6 @@ router = APIRouter(
     tags=["closet"]
 )
 
-# ========== 新增：中文搜索辅助函数 ==========
 def build_chinese_search_filter(field, keyword):
     """
     构建中文模糊搜索过滤条件（兼容中英文，优化匹配效率）
@@ -20,11 +19,10 @@ def build_chinese_search_filter(field, keyword):
     :param keyword: 搜索关键词
     :return: sqlalchemy 过滤条件
     """
-    # 去除关键词空格，支持中文分词片段匹配
     keyword = re.sub(r'\s+', '', keyword).strip()
     if not keyword:
         return None
-    # 优化：用 concat 减少 % 前缀（若有索引可走索引扫描），中文用 like 兼容
+    # 用 concat 减少 % 前缀（若有索引可走索引扫描），中文用 like 兼容
     return field.like(f"%{keyword}%")
 
 @router.get("/categories", response_model=List[schemas.Category])
@@ -36,7 +34,6 @@ def get_categories(
     categories = db.query(models.Category).all()
     result = []
     for category in categories:
-        # 增加 user_id 过滤
         count = db.query(func.count(models.ClothingItem.item_id))\
                  .filter(
                      models.ClothingItem.category_id == category.category_id,
@@ -53,14 +50,13 @@ def get_category_with_clothes(
     skip: int = Query(0, ge=0),
     limit: int = Query(20, le=100),
     db: Session = Depends(get_db),
-    user_id: int = Depends(security.get_current_user_id) # [新增]
+    user_id: int = Depends(security.get_current_user_id)
 ):
     """获取分类下的衣物 (仅限当前用户)"""
     category = db.query(models.Category).filter(models.Category.category_id == category_id).first()
     if not category:
         raise HTTPException(status_code=404, detail="Category not found")
     
-    # [修改] 增加 user_id 过滤
     clothes = db.query(models.ClothingItem)\
                 .filter(
                     models.ClothingItem.category_id == category_id,
@@ -83,7 +79,7 @@ def search_items(
     skip: int = Query(0, ge=0),
     limit: int = Query(20, le=100),
     db: Session = Depends(get_db),
-    user_id: int = Depends(security.get_current_user_id) # [新增]
+    user_id: int = Depends(security.get_current_user_id)
 ):
     """搜索衣物 (仅限当前用户)"""
     try:
@@ -121,27 +117,26 @@ def search_items(
             if search_conditions:
                 filters.append(or_(*search_conditions))
 
-            # 2.2 分类过滤（精准匹配）
+            # 分类过滤
         if category_id:
             filters.append(models.ClothingItem.category_id == category_id)
 
-            # 2.3 颜色过滤（中文支持，如：黑色、白色）
+            # 颜色过滤
         if color and color.strip():
             color_filter = build_chinese_search_filter(models.ClothingItem.color, color)
             if color_filter:
                 filters.append(color_filter)
 
-            # 2.4 季节过滤（中文支持，如：春季、冬季）
+            # 季节过滤
         if season and season.strip():
             season_filter = build_chinese_search_filter(models.ClothingItem.season, season)
             if season_filter:
                 filters.append(season_filter)
 
-            # 3. 应用所有过滤条件（优化：避免空filter导致全表扫描）
+            # 应用所有过滤条件（优化：避免空filter导致全表扫描）
         if filters:
             query_obj = query_obj.filter(*filters)
 
-            # 4. 性能优化：
             # - distinct() 去重（按需保留，若无重复可删除）
             # - 先分页再查询，减少数据加载
         items = query_obj.distinct().offset(skip).limit(limit).all()
@@ -149,7 +144,6 @@ def search_items(
         return items
 
     except Exception as e:
-        # 异常时手动回滚 + 精准报错
         db.rollback()
         error_detail = f"搜索失败：{str(e)}，关键词：{query}，用户ID：{user_id}"
         print(error_detail)
@@ -159,13 +153,13 @@ def search_items(
 def get_item(
     item_id: int, 
     db: Session = Depends(get_db),
-    user_id: int = Depends(security.get_current_user_id) # [新增]
+    user_id: int = Depends(security.get_current_user_id)
 ):
     """获取衣物详情 (需验证归属权)"""
     item = db.query(models.ClothingItem)\
              .filter(
                  models.ClothingItem.item_id == item_id,
-                 models.ClothingItem.user_id == user_id # 只能查自己的
+                 models.ClothingItem.user_id == user_id
              ).first()
     if not item:
         raise HTTPException(status_code=404, detail="Item not found")
@@ -175,18 +169,16 @@ def get_item(
 def create_item(
     item: schemas.ClothingItemCreate, 
     db: Session = Depends(get_db),
-    user_id: int = Depends(security.get_current_user_id) # [新增]
+    user_id: int = Depends(security.get_current_user_id)
 ):
     """创建衣物"""
     try:
-        # 忽略前端传来的 user_id，强制使用 Token 中的 user_id
         item_data = item.dict()
         item_data['user_id'] = user_id
         print(user_id)
         
         tag_ids = item_data.pop('tag_ids', [])
 
-        # 检查分类是否存在
         category = db.query(models.Category).filter(models.Category.category_id == item_data['category_id']).first()
         if not category:
             raise HTTPException(status_code=404, detail=f"分类ID {item_data['category_id']} 不存在")
@@ -195,7 +187,6 @@ def create_item(
         db.add(db_item)
         db.flush()
 
-        # 添加标签
         if tag_ids:
             for tag_id in tag_ids:
                 tag = db.query(models.Tag).filter(models.Tag.tag_id == tag_id).first()
@@ -229,7 +220,6 @@ def update_item(
         raise HTTPException(status_code=404, detail="Item not found")
 
     try:
-        # 不允许修改 user_id
         update_data = item_update.dict(exclude={'tag_ids', 'user_id'})
         for key, value in update_data.items():
             setattr(db_item, key, value)
@@ -243,7 +233,6 @@ def update_item(
         db.refresh(db_item)
         return db_item
     except Exception as e:
-        # 修复：捕获异常并打印，避免静默回滚
         db.rollback()
         print(f"更新失败：{str(e)}")
         raise HTTPException(status_code=500, detail=f"Update failed: {str(e)}")
@@ -274,7 +263,7 @@ def get_dashboard_stats(
 ):
     """获取仪表盘所需的统计数据：总数、总价、分类占比、最近单品"""
 
-    # 1. 基础统计 (单品总数 + 总金额)
+    # 基础统计 (单品总数 + 总金额)
     base_stats = db.query(
         func.count(models.ClothingItem.item_id).label("count"),
         func.sum(models.ClothingItem.price).label("total_price")
@@ -283,7 +272,7 @@ def get_dashboard_stats(
     total_count = base_stats.count or 0
     total_price = base_stats.total_price or 0.0
 
-    # 2. 分类占比 (按 category_name 分组)
+    # 分类占比 (按 category_name 分组)
     # 注意：这里只统计有衣服的分类
     cat_stats = db.query(
         models.Category.category_name,
@@ -294,7 +283,7 @@ def get_dashboard_stats(
 
     pie_data = [{"name": c.category_name, "value": c.count} for c in cat_stats]
 
-    # 3. 最近添加的 4 件单品
+    # 最近添加的 4 件单品
     recent_items = db.query(models.ClothingItem) \
         .filter(models.ClothingItem.user_id == user_id) \
         .order_by(models.ClothingItem.purchase_date.desc()) \
